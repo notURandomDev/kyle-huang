@@ -1,0 +1,326 @@
+---
+name: "安小恒"
+title: "西湖论剑大会 - AI 智能会议助手应用"
+publishedAt: "2025-04-15"
+summary: "结合智能体进行应用开发，对视频流生成实时分析、会议记录、要点总结；提高参会者效率和质量，改善参会体验。"
+githubRepo: "nativewind-a18"
+images:
+  - "/images/projects/a18/cover-01.jpg"
+team:
+  - name: "Yiting Yan"
+    role: "智能体开发、项目管理"
+  - name: "notURandomDev"
+    role: "架构设计；React Native跨平台应用开发"
+    avatar: "https://avatars.githubusercontent.com/u/126687028?s=64&v=4"
+    github: "https://github.com/notURandomDev"
+  - name: "Jiangwei Ni"
+    role: "后端开发"
+  - name: "Yanfei Luyu"
+    role: "产品原型设计"
+  - name: "Xiaona Bai"
+    role: "智能体开发"
+---
+
+## 技术复盘
+
+### 自定义视频控件
+
+当 UI 稿中出现了大量自定义的视频按钮时，我就意识到这个视频控件要自己写了：
+
+![UI稿中的视频控件](/images/projects/a18/image-01.png)
+
+在开发视频控件的过程中，我遇到的主要挑战有：
+
+- 进度条与视频进度的同步
+  - 当视频播放的时候，进度条自动向前推进；此处是通过监听 player 的 `timeUpdate` 事件。
+  - 当拖拽进度条时，视频进度需要进行响应；此处是通过 Slider 控件的 onValueChange 和 onSlidingComplete 监听函数来实现的
+- 视频的暂停与播放：将暂停播放按钮与 player 的 `play()` 和 `pause()` 方法进行绑定
+- 视频控件的显示与隐藏：因为整个控件其实是一个绝对定位的 Overlay，其被 `TouchableWithoutFeedback` 包裹，onPress 绑定了视频控件的隐藏和唤醒
+- UI：这里有个细节就是，视频控件的上下都各自使用了一个渐变；这样能使按钮更加明显
+
+---
+
+晋级了区域赛之后，这里又加了一个功能，就是视频的截图功能。实现的思路就是使用 player 的 `generateThumbnailsAsync()` 方法；截图完成之后，展现一个呈现截图的模态框，提示用户进行保存或者取消操作。
+
+### ⭐️ 智能对话
+
+这个界面可就是重头戏了！有很多技术干货可以讲。
+
+---
+
+**⌚️ 结合 SSE + Lottie 动画，实现问答阶段的展示：**
+
+- 由于安恒智能体的回答需要经过几个阶段之后，才能流式返回最终的结果；因此，为了优化用户等待过程中的体验，此处采用了分阶段的反馈，使用户对于智能体的工作进行有效的感知。
+- 实现的原理就是接收服务器侧发送事件中的不同 phaseCode。如果当前 phase 还在进行中，就展示当前阶段的 loading 状态；否则就将其 push 到已经加载完成的 PhaseSection 中。
+
+---
+
+**⌨️ 通过 SSE 实现对话的流式传输 & 打字机效果的输出**
+
+SSE（Server-Sent Events）其实是通过这个项目了解到的核心 HTTP 技术。从一开始 DeepSeek 的响应中学习到了传输字段的最佳实践，到后续将 SSE 的操作逻辑封装到 `useSSE()` 的 Custom Hook 中。在这个 AI 聊天功能的开发过程中，深入接触了 SSE 的特性（如不同事件名称，以及 EventSource 的生命周期），
+
+---
+
+**⏬️ 置底最新的响应数据**
+
+通过 Ref 操纵 ScrollView 的 `onContentSizeChange()` ，能够使最新的响应始终保持在屏幕的底部。虽然这是一个很小的细节，但是对于用户的体验而言却是至关重要。
+
+找到这个解决方法也是不容易。问了 AI，最后兜兜转转到 Stack Overflow，才知道原来 ScrollView 的这个 API 可以优雅地解决这个问题。
+
+### ⭐️ 实时转写
+
+实时转写是最为核心的功能之一。
+
+---
+
+**🖼️  架构设计**
+
+在实际的应用场景中，会存在参会者中途入会的情况；对于这种情况，应用应该把参会者错过的所有转录数据都展示出来。
+
+这里就要提一提我们采用的架构。因为在一开始分析这个需求的时候，团队成员和我的思路不一样，我还特意为他们梳理过一遍数据的交互和存储过程。
+
+首先需要明确的是，流媒体服务器在直播过程中是一直启动的；这意味着后端的生命周期是和流媒体服务器绑定的。无论客户端连接了多少用户，后端转录的服务是一直在运行的。
+
+- 当客户端没有连接到后端时，后端在实时转录数据的同时，将这些实时转录好的数据存到数据库中
+- 当客户端在活跃的状态时（即用户中途进入了会议空间），后端会根据客户端发送的标志位，将数据库中存储的转录数据先发送给客户端；同时，将实时转录的数据也和客户端同步。这样就能够实现多时间维度的数据同步
+
+---
+
+**🧠  多种事件类型处理**
+
+- 对于普通的转录数据，页面中会以打字机的效果进行展示
+- 普通的转录数据会经过智能体进一步增强，包括：
+  - 语义增强：智能体将语音转成文字之后，会对文本中的一些衔接词和语气词进行过滤；使参会者阅读起来更加通顺
+  - 知识卡片生成：智能体会对于转录数据中的行业术语进行提取，并将其实体通过 SSE 发送给客户端；在转录界面中，行业术语会被标记为蓝色，点击之后，参会者可以查看具体释义
+
+---
+
+**🔄  性能优化**
+
+对于已经完成的转录段落，会被 memo 进行缓存；而对于正在进行转录的段落而言，使用的是一个独立的状态来管理。这样能够防止已经完成转录的段落被频繁重新渲染，提升了渲染的性能。
+
+### 搜索过滤
+
+**🔍  反向过滤**
+
+虽然这是一个不起眼的功能，但是设计的思路却很巧妙。
+
+用户在输入框中通过关键字对于会议进行搜索时，下方会有一个「猜你想搜」的列表；同时，会对用户的输入进行匹配后高亮显示。
+
+这里实现的思路，其实就是对推荐的列表项进行遍历。对于每一个列表项的文字字符串，又通过 `split()` 拆分成数组。对于数组中的每一个元素都进行检查：如果用户的输入包含这一个元素，那么这一个元素就会被蓝色高亮显示：
+
+```jsx
+@label: textInputValue 代表用户输入，result 代表列表项
+
+result.split("").map((ch, idx) => (
+  <Text
+    key={`result-${index}-ch-${idx}`}
+    className={`${textInputValue.includes(ch) ? "text-blue" : ""}`}
+  >
+    {ch}
+  </Text>
+));
+```
+
+因此，这其实是一种逆向思维的体现。这里并不是对用户输入进行拆分，去匹配列表项中的内容；而是通过将列表项中的内容拆分，去匹配输入内容，来实现该功能。
+
+---
+
+**🫨 搜索防抖**
+
+对于搜索的过滤，如果用户每输入一个新字符就进行一次，会使后端 API 的压力过大。通过运用防抖函数，当用户停止输入操作的 500ms 之后，再对搜索结果进行过滤操作，可以极大地减少请求的发送。
+
+```jsx
+@label: 防抖的频率为 500ms
+const debouncedFilter = debounce(() => {
+  // 1. 对搜索列表进行过滤，返回满足表达式的列表项
+  const newSearchResults = SEARCH_RESULTS.filter((result) =>
+    //  2. 如果用户输入的每个字符，在该列表项中都能找到，说明满足结果
+    textInputValue.split("").every((ch) => result.includes(ch))
+  );
+  setSearchResults(newSearchResults);
+}, 500);
+
+useEffect(debouncedFilter, [textInputValue]);
+```
+
+## 未来新功能规划
+
+### 会议日程的添加
+
+该功能支持用户在应用内添加日程，具体的实现方式有：
+
+- 用户手动对于会议实体进行日程添加的操作（应用内），当会议即将开始的时候，通过设备系统的消息推送通知用户
+- 支持用户将该日程添加到系统原生的日历 App 中，后期支持更多第三方的接口（如 Notion Calendar）
+
+**⚛️ 技术实现思路**
+
+对于系统消息推送的功能，可以使用 Expo SDK 提供的 `expo-notifications` 库来实现：
+
+- 通过配置 Notifications.scheduleNotificationAsync，可以设置定时时间
+- `scheduleNotification` 在用户添加日程的时候即调用，只要把定时时间配置正确即可，日程的调度能够在系统中持久化存储
+
+```jsx
+import * as Notifications from "expo-notifications";
+
+async function scheduleNotification(event) {
+  await Notifications.scheduleNotificationAsync({
+    content: {
+      title: `即将开始: ${event.title}`,
+      body: `会议将在 ${event.location} 开始`,
+    },
+    trigger: {
+      date: new Date(event.startTime).getTime() - 10 * 60 * 1000, // 提前10分钟
+    },
+  });
+}
+```
+
+使用 `react-native-calendar-events` 与设备的原生日历进行交互：
+
+```jsx
+import RNCalendarEvents from "react-native-calendar-events";
+
+async function addToCalendar(event) {
+  const eventId = await RNCalendarEvents.saveEvent(event.title, {
+    startDate: event.startTime,
+    endDate: event.endTime,
+    location: event.location,
+    description: event.description,
+  });
+  return eventId;
+}
+```
+
+### 通过扫描二维码快速入会
+
+主办方在会场内放置会议二维码，参会者可以通过扫描二维码快速入会。
+
+这里需要说明的是，尽管该应用的直播功能更多面向的是线上参会者；但是中途入会的情况，对于线下参会者而言也是存在的。他们可以通过查看 App 中的历史转录数据以及章节速览，来 catch up 会议的进度。
+
+因此，对于中途入会的线下参会者，他们的心理状态本身就是比较着急的。如果再去应用里查找当前的会议，这一个步骤本身也比较耗时。因此，通过提供二维码快速入会的功能，可以为参会者提供极大的便利。
+
+当然，这个功能的受众是全体的线下参会者，并不只针对与中途入会的线下参会者；所有线下参会者都可以从这个功能提供的便利中获益，提高参会效率。
+
+**⚛️ 技术实现思路**
+
+首先，需要将会议的信息（URL）嵌入到二维码中。这里，可以使用生成二维码的库 `react-native-qrcode-svg` ：
+
+```jsx
+import QRCode from "qrcode";
+
+async function generateQRCode(meetingId) {
+  const url = `https://app.example.com/meeting/${meetingId}`;
+  const qrCodeDataUrl = await QRCode.toDataURL(url);
+  return qrCodeDataUrl; // 返回二维码图片的 Data URL
+}
+```
+
+使用 expo-camera 实现二维码的扫描，随后根据扫描的结果进行页面的跳转。
+
+```jsx
+import { Camera } from "expo-camera";
+
+function QRScanner({ onScan }) {
+  const [hasPermission, setHasPermission] = useState(null);
+
+  useEffect(() => {
+    (async () => {
+      const { status } = await Camera.requestCameraPermissionsAsync();
+      setHasPermission(status === "granted");
+    })();
+  }, []);
+
+  if (hasPermission === false) {
+    return <Text>需要摄像头权限</Text>;
+  }
+
+  return (
+    <Camera
+      style={{ flex: 1 }}
+      onBarCodeScanned={({ data }) => onScan(data)}
+      barCodeScannerSettings={{
+        barCodeTypes: ["qr"],
+      }}
+    />
+  );
+}
+```
+
+### i18n 的集成
+
+使用 `i18next` 和 `react-i18next`，通过配置语言资源文件，来实现国际化的初始化工作。
+
+**⚛️ 技术实现思路**
+
+在界面文件中使用 `useTranslation` 的钩子，来访问多语言资源对象：
+
+```jsx
+import React from "react";
+import { View, Text, Button } from "react-native";
+import { useTranslation } from "react-i18next";
+
+function EventScreen({ event }) {
+  const { t, i18n } = useTranslation();
+
+  // 示例：切换语言
+  const changeLanguage = async (lng) => {
+    await i18n.changeLanguage(lng);
+    await AsyncStorage.setItem("language", lng); // 保存用户语言偏好
+  };
+
+  return (
+    <View>
+      <Text>{t("schedule.add_event")}</Text>
+      <Text>{t("schedule.notification_title", { title: event.title })}</Text>
+      <Button title="Switch to Chinese" onPress={() => changeLanguage("zh")} />
+      <Button title="Switch to English" onPress={() => changeLanguage("en")} />
+    </View>
+  );
+}
+
+export default EventScreen;
+```
+
+## 南京区域赛答辩
+
+在答辩的过程中，评委专家问了几个在我们看来很“万金油”的问题：
+
+**❓  有没有做管理端**
+
+其实这个问题在前一个小组答辩完成出来之后骂骂咧咧，已经知道会问了；实际上评委还是问了。
+
+我先是肯定了评委对于这个需求的疑问，同意了这是一个非常合理的需求。随后我说，管理端有在我们开发团队的策划范畴中，只不过属于项目的后期阶段。
+
+对于视频的管理，我说可以先将其看作管理端的权限很大，可以直接对于代码进行操作；换言之，在当前阶段，开发者同时担任着管理员的角色。随着项目进度的推进，管理端的开发也会被提上日程。
+
+**❓  不同的智能体之间是如何交互的**
+
+这个点是组长回答的，讲了安恒模型与阿里云的转录模型之间的数据交互。
+
+**❓  如何保障内容的安全**
+
+对于智能体内容的安全问题，我们其实有准备；因为智能体是有进行输入输出的安全检测的。但是评委想问的其实是其它方面的内容安全；就比如说如果用户在直播聊天中骂了一句脏话，应该如何处理。
+
+这个问题我们其实没有回答上来，之前也没有准备到。后来想了想，这个问题其实还是和管理端多少有点联系。其实这个功能并不能直接实现，而是可以通过用户进行举报，然后通过管理端进行封号操作等。
+
+但是如果这么考虑，其实这个问题和“安全性”并没有直接的挂钩；这里更多指的是内容的合规性。其实这并不是该项目的重点；对于任何一个在线的平台，都会有这个问题存在。
+
+## 总结
+
+虽然在这个项目中，我学到并且运用到了很多新技术。但是坦诚来说，这个项目到目前为止还是一个 Demo 项目；此 Demo 特征到了项目的后期愈发明显。因为我发现，为了赶进度，以及结合比赛的本质，我们并不需要一个实际完整落地的应用，大多数的界面是为了展示而开发的。这就意味着：
+
+- 很多界面都只是一层 UI 壳，底下并没有真实的数据处理逻辑，而大多只是为了展示而放的 mock 数据
+- 单人开发所有前端界面，到后期发现代码之间开始耦合；为了赶进度，没时间进行代码的重构以及模块化的构建，导致出现了很多重复的代码
+
+不过，这个项目因为有 UI/UX 设计师，因此我可以直接通过给的设计稿来写界面：
+
+- 一方面给我减轻了很多负担；我不用同时做制作原型图 + 代码开发这两件事情，只需要完成后者
+- 另一方面，团队中的 UI/UX 由于没有原型图落地的经验，所以我感觉在设计的时候没有考虑组件复用的问题。这就导致同一个功能的组件，UI 设计师可能为了体现多样性，设计了很多不同的风格，从而降低了组件的复用性。
+
+而且如果换成我来做原型图的话，我不会设计这么多界面。我认为这可能是由于 UI 设计师与前端工程师对于应用的理解不同所导致的。
+
+- 对于前端工程师而言，更多会从功能的角度出发，去组织页面的布局，以及不同页面之间的关系
+- 对于 UI 设计师而言，就可能是从应用的信息架构出发，去进行设计
+
+尽管如此，在这个项目中，我将很多前端开发中常用的技术从概念的了解到应用实践，感触很深。
