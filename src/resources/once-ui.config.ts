@@ -17,10 +17,10 @@ const baseURL: string = "https://demo.magic-portfolio.com";
 
 const routes: RoutesConfig = {
   "/": true,
-  "/about": true,
-  "/work": true,
+  "/resume": true,
+  "/project": true,
   "/blog": true,
-  "/gallery": true,
+  "/gallery": false,
 };
 
 const display: DisplayConfig = {
@@ -32,7 +32,7 @@ const display: DisplayConfig = {
 // Enable password protection on selected routes
 // Set password in the .env file, refer to .env.example
 const protectedRoutes: ProtectedRoutesConfig = {
-  "/work/automate-design-handovers-with-a-figma-to-code-pipeline": true,
+  "/project/automate-design-handovers-with-a-figma-to-code-pipeline": true,
 };
 
 // Import and set font for each variant

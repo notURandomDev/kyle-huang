@@ -1,19 +1,28 @@
-import { About, Blog, Gallery, Home, Newsletter, Person, Social, Work } from "@/types";
+import {
+  About,
+  Blog,
+  Gallery,
+  Home,
+  Newsletter,
+  Person,
+  Social,
+  Work,
+} from "@/types";
 import { Line, Logo, Row, Text } from "@once-ui-system/core";
 
 const person: Person = {
-  firstName: "Selene",
-  lastName: "Yu",
-  name: `Selene Yu`,
-  role: "Design Engineer",
-  avatar: "/images/avatar.jpg",
-  email: "example@gmail.com",
-  location: "Asia/Jakarta", // Expecting the IANA time zone identifier, e.g., 'Europe/Vienna'
-  languages: ["English", "Bahasa"], // optional: Leave the array empty if you don't want to display languages
+  firstName: "Kyle",
+  lastName: "Huang",
+  name: `Kyle Huang`,
+  role: "前端工程师",
+  avatar: "/images/avatar.png",
+  email: "1250901577@qq.com",
+  location: "Asia/Shanghai", // Expecting the IANA time zone identifier, e.g., 'Europe/Vienna'
+  languages: [], // optional: Leave the array empty if you don't want to display languages
 };
 
 const newsletter: Newsletter = {
-  display: true,
+  display: false,
   title: <>Subscribe to {person.firstName}'s Newsletter</>,
   description: <>My weekly newsletter about creativity and engineering</>,
 };
@@ -24,17 +33,7 @@ const social: Social = [
   {
     name: "GitHub",
     icon: "github",
-    link: "https://github.com/once-ui-system",
-  },
-  {
-    name: "LinkedIn",
-    icon: "linkedin",
-    link: "https://www.linkedin.com/company/once-ui/",
-  },
-  {
-    name: "Threads",
-    icon: "threads",
-    link: "https://www.threads.com/@once_ui",
+    link: "https://github.com/notURandomDev",
   },
   {
     name: "Email",
@@ -47,40 +46,42 @@ const home: Home = {
   path: "/",
   image: "/images/og/home.jpg",
   label: "Home",
-  title: `${person.name}'s Portfolio`,
+  title: `${person.name}`,
   description: `Portfolio website showcasing my work as a ${person.role}`,
-  headline: <>Building bridges between design and code</>,
+  headline: <>Kyle Huang</>,
   featured: {
     display: true,
     title: (
       <Row gap="12" vertical="center">
-        <strong className="ml-4">Once UI</strong>{" "}
+        <strong className="ml-4">useState</strong>{" "}
         <Line background="brand-alpha-strong" vert height="20" />
         <Text marginRight="4" onBackground="brand-medium">
-          Featured work
+          精选博客
         </Text>
       </Row>
     ),
-    href: "/work/building-once-ui-a-customizable-design-system",
+    href: "/blog/react-deep-dive-use-state",
   },
   subline: (
-    <>
-      I'm Selene, a design engineer at{" "}
-      <Logo
-        dark
-        icon="/trademarks/wordmark-dark.svg"
-        style={{ display: "inline-flex", top: "0.25em", marginLeft: "-0.25em" }}
-      />
-      , where I craft intuitive
-      <br /> user experiences. After hours, I build my own projects.
-    </>
+    // <>
+    //   I'm Selene, a design engineer at{" "}
+    //   <Logo
+    //     dark
+    //     icon="/trademarks/wordmark-dark.svg"
+    //     style={{ display: "inline-flex", top: "0.25em", marginLeft: "-0.25em" }}
+    //   />
+    //   , where I craft intuitive
+    //   <br /> user experiences. After hours, I build my own projects.
+    // </>
+    // <>“代码是用来让人读的，只是顺便让机器执行而已”</>
+    <>Hi～ 我是一个热衷于用代码解决实际问题的前端工程师 💻</>
   ),
 };
 
 const about: About = {
-  path: "/about",
-  label: "About",
-  title: `About – ${person.name}`,
+  path: "/resume",
+  label: "简历",
+  title: `${person.name}｜简历`,
   description: `Meet ${person.name}, ${person.role} from ${person.location}`,
   tableOfContent: {
     display: true,
@@ -90,88 +91,153 @@ const about: About = {
     display: true,
   },
   calendar: {
-    display: true,
+    display: false,
     link: "https://cal.com",
   },
   intro: {
     display: true,
-    title: "Introduction",
+    title: "个人介绍",
     description: (
       <>
-        Selene is a Jakarta-based design engineer with a passion for transforming complex challenges
-        into simple, elegant design solutions. Her work spans digital interfaces, interactive
-        experiences, and the convergence of design and technology.
+        Hi~
+        我是Kyle，一个具有全栈开发能力的前端工程师；事实上，我更倾向于认为自己是一个善于解决问题的开发者。平时会关注一些
+        AI、技术开源领域的最新动态。
+        <br /> <br />
+        我有代码洁癖，喜欢重构代码，对高效的系统架构情有独钟；但我非常认同过早进行性能优化反而会降低开发效率。
+        <br /> <br />
+        Project-Based Learning
+        是我最喜欢的一种学习方式，因为用代码解决实际应用问题是最容易理解技术的路径！
       </>
     ),
   },
+  studies: {
+    display: true, // set to false to hide this section
+    title: "教育经历",
+    institutions: [
+      {
+        name: "软件工程-大四｜杭州电子科技大学",
+        description: (
+          <>
+            GPA：4.2/5，平均绩点专业前三
+            <br />
+            <br />
+            获浙江省政府奖学金、校优秀学生奖学金一等奖2次，二等奖1次
+          </>
+        ),
+      },
+    ],
+  },
   work: {
     display: true, // set to false to hide this section
-    title: "Work Experience",
+    title: "实习经历",
     experiences: [
       {
-        company: "FLY",
-        timeframe: "2022 - Present",
-        role: "Senior Design Engineer",
+        company: "飞书｜字节跳动",
+        timeframe: "2025/07 - 至今",
+        role: "客户端开发 - 架构小组",
         achievements: [
           <>
-            Redesigned the UI/UX for the FLY platform, resulting in a 20% increase in user
-            engagement and 30% faster load times.
+            构建优化：基于 Bazel 改造 Protobuf → Rust Binding
+            的生成流程，接入远端缓存以复用 PB 构建产物，CI 构建性能提升约 30%
           </>,
           <>
-            Spearheaded the integration of AI tools into design workflows, enabling designers to
-            iterate 50% faster.
+            Monorepo架构优化：参与飞书多端代码向大型单体仓库迁移，复用底层 Rust
+            代码；完成 Android 端 CI 任务脚本适配，适配率 100%
+          </>,
+          <>
+            代码质量提升：开发 Ruby 脚本优化 iOS 编译策略，落地
+            treat_warnings_as_errors；清理仓库冗余 public import，加速编译过程
           </>,
         ],
         images: [
           // optional: leave the array empty if you don't want to display images
           {
-            src: "/images/projects/project-01/cover-01.jpg",
-            alt: "Once UI Project",
+            src: "/images/work/lark/logo-01.jpg",
+            alt: "Lark Logo",
             width: 16,
             height: 9,
           },
         ],
       },
-      {
-        company: "Creativ3",
-        timeframe: "2018 - 2022",
-        role: "Lead Designer",
-        achievements: [
-          <>
-            Developed a design system that unified the brand across multiple platforms, improving
-            design consistency by 40%.
-          </>,
-          <>
-            Led a cross-functional team to launch a new product line, contributing to a 15% increase
-            in overall company revenue.
-          </>,
-        ],
-        images: [],
-      },
-    ],
-  },
-  studies: {
-    display: true, // set to false to hide this section
-    title: "Studies",
-    institutions: [
-      {
-        name: "University of Jakarta",
-        description: <>Studied software engineering.</>,
-      },
-      {
-        name: "Build the Future",
-        description: <>Studied online marketing and personal branding.</>,
-      },
     ],
   },
   technical: {
     display: true, // set to false to hide this section
-    title: "Technical skills",
+    title: "专业技能",
     skills: [
       {
-        title: "Figma",
+        title: "Web前端开发",
         description: (
-          <>Able to prototype in Figma with Once UI with unnatural speed.</>
+          <>
+            熟悉 HTML、CSS、JavaScript、TypeScript；熟悉 React
+            框架、UI组件库应用及开发
+          </>
+        ),
+        tags: [
+          { name: "HTML", icon: "html" },
+          { name: "CSS", icon: "css" },
+          { name: "JavaScript", icon: "javascript" },
+          { name: "TypeScript", icon: "typescript" },
+          { name: "React", icon: "react" },
+        ],
+        // optional: leave the array empty if you don't want to display images
+        images: [],
+      },
+      {
+        title: "跨平台开发",
+        description: (
+          <>
+            熟悉 React Native 跨平台开发、微信小程序开发；有 Android、iOS
+            客户端开发经验
+          </>
+        ),
+        tags: [
+          { name: "React Native", icon: "reactNative" },
+          { name: "Android Studio", icon: "androidStudio" },
+          { name: "Xcode", icon: "xcode" },
+          { name: "Swift", icon: "swift" },
+        ],
+        // optional: leave the array empty if you don't want to display images
+        images: [],
+      },
+      {
+        title: "全栈开发",
+        description: (
+          <>
+            有使用 云开发平台/BaaS 协助全栈开发的能力；了解常规的 Node.js
+            后端项目开发
+          </>
+        ),
+        tags: [
+          { name: "appwrite", icon: "appwrite" },
+          { name: "Node.js", icon: "nodejs" },
+          { name: "Express.js", icon: "expressjs" },
+        ],
+        // optional: leave the array empty if you don't want to display images
+        images: [],
+      },
+      {
+        title: "DevOps",
+        description: (
+          <>
+            熟悉Git；有GitHub/GitLab的DevOps相关经验，以及Web项目的部署全流程经验
+          </>
+        ),
+        tags: [
+          { name: "Git", icon: "git" },
+          { name: "GitHub", icon: "github" },
+          { name: "GitLab", icon: "gitlab" },
+          { name: "Vercel", icon: "vercel" },
+        ],
+        // optional: leave the array empty if you don't want to display images
+        images: [],
+      },
+      {
+        title: "设计能力",
+        description: (
+          <>
+            熟悉UI、UX设计，有Figma使用经验，艺术审美较高；善于将想法转化为产品
+          </>
         ),
         tags: [
           {
@@ -180,67 +246,25 @@ const about: About = {
           },
         ],
         // optional: leave the array empty if you don't want to display images
-        images: [
-          {
-            src: "/images/projects/project-01/cover-02.jpg",
-            alt: "Project image",
-            width: 16,
-            height: 9,
-          },
-          {
-            src: "/images/projects/project-01/cover-03.jpg",
-            alt: "Project image",
-            width: 16,
-            height: 9,
-          },
-        ],
+        images: [],
       },
-      {
-        title: "Next.js",
-        description: (
-          <>Building next gen apps with Next.js + Once UI + Supabase.</>
-        ),
-        tags: [
-          {
-            name: "JavaScript",
-            icon: "javascript",
-          },
-          {
-            name: "Next.js",
-            icon: "nextjs",
-          },
-          {
-            name: "Supabase",
-            icon: "supabase",
-          },
-        ],
-        // optional: leave the array empty if you don't want to display images
-        images: [
-          {
-            src: "/images/projects/project-01/cover-04.jpg",
-            alt: "Project image",
-            width: 16,
-            height: 9,
-          },
-        ],
-      },  
     ],
   },
 };
 
 const blog: Blog = {
   path: "/blog",
-  label: "Blog",
-  title: "Writing about design and tech...",
+  label: "技术博客",
+  title: "在项目中积累开发经验",
   description: `Read what ${person.name} has been up to recently`,
   // Create new blog posts by adding a new .mdx file to app/blog/posts
   // All posts will be listed on the /blog route
 };
 
 const work: Work = {
-  path: "/work",
-  label: "Work",
-  title: `Projects – ${person.name}`,
+  path: "/project",
+  label: "项目经历",
+  title: "项目经历",
   description: `Design and dev projects by ${person.name}`,
   // Create new project pages by adding a new .mdx file to app/blog/posts
   // All projects will be listed on the /home and /work routes

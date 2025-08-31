@@ -13,6 +13,13 @@ const nextConfig = {
     compiler: "modern",
     silenceDeprecations: ["legacy-js-api"],
   },
+  images: {
+    remotePatterns: [
+      {
+        hostname: "avatars.githubusercontent.com",
+      },
+    ],
+  },
 };
 
 export default withMDX(nextConfig);

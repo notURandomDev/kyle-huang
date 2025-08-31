@@ -7,9 +7,11 @@ type Team = {
   role: string;
   avatar: string;
   linkedIn: string;
+  github: string;
 };
 
 type Metadata = {
+  name: string;
   title: string;
   publishedAt: string;
   summary: string;
@@ -18,6 +20,7 @@ type Metadata = {
   tag?: string;
   team: Team[];
   link?: string;
+  githubRepo?: string;
 };
 
 import { notFound } from "next/navigation";
@@ -39,6 +42,7 @@ function readMDXFile(filePath: string) {
   const { data, content } = matter(rawContent);
 
   const metadata: Metadata = {
+    name: data.name || "",
     title: data.title || "",
     publishedAt: data.publishedAt,
     summary: data.summary || "",
@@ -47,6 +51,7 @@ function readMDXFile(filePath: string) {
     tag: data.tag || [],
     team: data.team || [],
     link: data.link || "",
+    githubRepo: data.githubRepo || "",
   };
 
   return { metadata, content };
