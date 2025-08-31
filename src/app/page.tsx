@@ -10,6 +10,7 @@ import {
   Schema,
   Meta,
   Line,
+  OgCard,
 } from "@once-ui-system/core";
 import { home, about, person, baseURL, routes } from "@/resources";
 import { Mailchimp } from "@/components";
