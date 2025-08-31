@@ -1,0 +1,20 @@
+---
+title: "useSearchParams"
+publishedAt: "2025-03-21"
+tag: "React Deep Dive 系列"
+---
+
+## 过滤器的优雅实现
+
+[The Best React State Management Solution Has Been There All Along](https://www.youtube.com/watch?v=oZZEI23Ri6E)
+
+当用户输入一些过滤的字段时，如果单单是在组件中进行状态存储，那么当用户返回到上一个界面，或者想要将过滤后的列表通过 URL 进行分享时，就导致无法实现。
+
+如何解决这个问题呢？答案就是使用`useSearchParams`。
+
+简单来说，就是将`TextInput`的事件响应函数和 searchParam 的 query 字段进行“绑定”，即通过 setState 动态地改变 URL 的参数。同时将 replace 字段设置为`true`，来优化浏览器返回/前进栈的行为。
+
+### 问题发散
+
+- SSR 面临的挑战有哪些？
+- SSR 是如何

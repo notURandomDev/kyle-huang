@@ -1,0 +1,49 @@
+---
+title: "React Fiber"
+publishedAt: "2025-03-15"
+tag: "React Deep Dive 系列"
+---
+
+[What Is React Fiber? React.js Deep Dive #2](https://youtu.be/0ympFIwQFJw?si=YOefYSoL39w8Sa-j)
+
+Fiber，其实本质上是一个 JS 对象（Object），并且是异步的。
+
+# React Fiber
+
+## Fiber 节点中的重要属性
+
+### memoizedState
+
+- 意义：用于存储各种 hook
+- 数据结构：单向链表
+- 节点
+  - 存储了单一 hook 的信息，如函数引用、依赖项等
+  - 存储了节点相对位置的信息（下一节点的指针等）
+
+### Fiber 的作用是什么？
+
+Fiber 其实本质上代表着工作单位，它的功能有：
+
+- 拆分任务、对任务进行优先处理
+- 起到中类似断的功能
+- 复用任务，或终止任务
+
+### Fiber 的属性
+
+- 和其它对象的关系是一对一的
+- `tag`字段存储对象类型，由数字 0 ～ 24 表示
+- `stateNode`字段是自身的引用，能够通过其访问到 Fiber 的状态（`state`）
+
+### Fiber 和 Element 之间的异同点
+
+Fiber 在大多数情况下是由 Element 创建的，而且 Fiber 和 Element 共享`type`和`key`字段。
+
+但是相比起于每次都被重新创建的 Element 而言，Fiber 节点往往会尽可能地被复用（除了初始情况下，所有的 Fiber 节点要先被创建）
+
+![React Fiber的tag字段](/images/blogs/react-deep-dive-react-fiber/image-01.jpeg)
+
+React Fiber 的 tag 字段
+
+## 协调器
+
+协调器分为两个阶段：渲染阶段（Render Phase）和提交阶段（Commit Phase）

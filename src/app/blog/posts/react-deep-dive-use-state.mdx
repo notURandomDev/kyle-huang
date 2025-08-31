@@ -1,0 +1,140 @@
+---
+title: "useState"
+publishedAt: "2025-03-28"
+tag: "React Deep Dive 系列"
+---
+
+重新渲染的实现分成两种：
+
+- 类组件：调用 `render()`
+- 函数组件：重新执行函数（因为函数组件，本身就是一个函数）
+
+## setState 三部曲
+
+简单来说，从调用了 setState，一直到 UI 渲染完成，主要有以下三个步骤：
+
+---
+
+### 1: Reconciliation（协调）
+
+**定位、更新、标记**
+
+一旦调用了 setState，会发生以下事件流：
+
+1. React 会用一个内部指针（`workInProgressHook`）定位到当前的 hook 所对应的 `memoizedState` 节点
+2. 找到节点之后，更改 `memoizedState` 节点的数据
+3. 将 Fiber 节点的 `effectTag` 置为 dirty
+   1. 注意，这里的 `effectTag` 属于 Fiber 节点的一个属性。如果 Fiber 节点的任意一个 hook 值发生了变化，都会将 `effectTag` 的值变成 dirty
+4. 标记完成之后，会从根节点开始重新生成一颗 Virtual DOM 树
+   1. 尽管 React 会从根节点开始重新生成一颗**完整**的虚拟 DOM 树，但是对于没有变「脏」的元素，会复用之前的 DOM，减少渲染成本
+   2. 对于变「脏」的元素，React 会进行深入计算
+   3. 对的，React 会在内存中维护两颗 DOM 树。一颗是当前（未更新）的树，另一颗是工作树（WIP）
+
+在该步骤中，主要的任务就是对更新后的 Hook 进行定位、更新数据；随后对 Fiber 节点进行标记
+
+---
+
+### 2: Diffing（对比）
+
+看到「Diffing」这个词，就要想到「Difference」。
+
+其实本质上，Diffing 算法就是在找不同。
+
+在对比 reconciliation 阶段生成的两颗虚拟 DOM 树的时候，会将 Fiber 节点的变化存在一个单向链表 effect-list 中。
+
+因此 Commit 提交操作并不是在 Diffing 过程中每遇到不同的 Fiber 节点就会进行，而是在 Diffing 结束之后，进行统一提交。
+
+---
+
+### 3: Commit（提交）
+
+在 Diffing 完成后，React 会遍历 effect-list 链表，通过指针来对需要更新的 DOM 进行修改操作；如：
+
+```javascript
+node.textContent = "new content";
+```
+
+需要明白的是，真实的 DOM 树并不会整棵都被重新绘制。
+
+---
+
+## setState：Under the Hood
+
+### setState 实际做了什么
+
+在调用 setState 的时候，乍一看好像只是调用了一个叫 setState 的函数；但实际上，setState 调用的是一个叫做**`dispatchSetState()`**的函数，随即 new 一个**`Update`**对象。
+
+### Update 对象
+
+Update 对象实际上是链表的一个节点，这个节点包含三个核心的字段：
+
+- lane：代表该 update 的优先级；React 会根据 Update 的优先级来执行调度算法，比如说 UI 更新的优先级大于网络请求的优先级
+- action：代表更新的内容；这一个字段既可以是一个值，也可以是一个**更新函数**。
+
+```javascript
+const update = {
+  lane, // 优先级
+  action: (prev) => newState, // 更新函数作为 payload
+  next: null,
+};
+```
+
+### 批量更新
+
+当 Update 被 dispatch 到相对应 hook 的 updateQueue 中之后，hook 的 memoizedState 并不会被马上更新。在大多数情况下，React 会先按顺序执行代码，这个过程中只要遇到 update 就会进行 dispatch。当该事件循环的同步代码全部执行完之后，React 会开始遍历 updateQueue。
+
+在遍历 updateQueue 的时候，会遇到**两种**情况：
+
+- action 是一个值：更新当前状态
+- action 是一个更新函数：调用函数，传入当前的状态，计算新状态，更新当前状态
+
+注意，这里在遍历链表的过程中，并不会直接对 hook 的 memoizedState 属性进行更改。这里可以理解成 React 会建立一个临时变量，用于累计遍历过程中的更新。当前 hook 的 updateQueue 遍历完成之后，React 才最终会把临时变量的值赋给 memoizedState。有点像 reduce 中的 acc。
+
+<br />
+<Feedback description="为了方便记忆，我把这种「累计性的批量更新」行为称作：「Accumulative Batch Update」" />
+<br />
+
+```javascript
+@label: 简化版的updateQueue遍历过程
+
+function updateState(initialState) {
+  let baseState = hook.memoizedState; // 从当前状态开始
+  let update = queue.pending;
+
+  if (update !== null) {
+    do {
+      const action = update.action;
+      baseState = typeof action === "function" ? action(baseState) : action; // 逐步更新
+      update = update.next;
+    } while (update !== null); // 遍历所有节点
+    queue.pending = null; // 清空队列
+  }
+
+  hook.memoizedState = baseState; // 最后赋值
+  return baseState;
+}
+```
+
+对于函数式组件而言，「更新函数的执行」与「状态合并」都是在渲染阶段进行执行。
+
+这也就解释的通，为什么在 useEffect 的清理函数中，如果使用更新函数去更新状态，更新函数体中的内容是不会被执行的。这是因为尽管调用了 setState，其更新函数会被作为 Update 中的内容被 dispatch 到 Fiber 节点中，hook 链表下的 updateQueue 中；而 updateQueue 中的内容，在 React 进行重新渲染之前不会被执行；考虑到该 setState 的上下文是在一个清理函数中，代表着组件即将被卸载，自然意味着组件不会重新渲染，而 updateQueue 中的更新内容（更新函数/状态合并）也自然不会被执行了。
+
+类似的，如果试图在 useEffect 中的清理函数去试图访问同样是在清理函数中更新的 state，那么访问到的状态也不会是最新的。因为该组件不会被重新渲染，这也就意味着 dispatch 到 hook 的 updateQueue 中的 update 节点不会被遍历，memoizedState 更不会被更新。
+
+### 思维板书
+
+图中，Initial State Value 其实就是未进行批量更新时，对应 hook 中的 memoizedState 值。
+
+## 其它细节
+
+### reconciliation 的入口
+
+尽管在大多数情况下，hook 的更新是 reconciliation 的入口；但是 hook 的更新并不是 reconciliation 的**_唯一_**触发入口。在以下情况中，reconciliation 也是会被触发的：
+
+- 初次渲染
+- 子组件的 props 发生变化
+- Context.Provider 的 value 发生变化
+
+### 渲染指的是什么
+
+渲染指的是 reconciliation 和 diffing 阶段，commit 不算是渲染阶段的一部分。
