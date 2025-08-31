@@ -1,0 +1,272 @@
+---
+title: "useCallback"
+publishedAt: "2025-03-21"
+tag: "React Deep Dive 系列"
+---
+
+## 引言
+
+为什么接触到了大名鼎鼎的 useCallback 了呢？
+
+因为在做 A18 的聊天界面的时候，发现每次在输入框中输入字符之后，都会触发整个 modal 的重渲染。当然，这是因为我在 modal 组件中使用了`setTextInputValue` 。因此，每次 state 的变化，都会导致整个组件的重新渲染。
+
+当然，如果单纯对于一个 demo 而言，优不优化性能并没有太大的关系。但是考虑到这么重要的一个 hook，迟早都要学的，不如趁着这个机会仔细研究研究。
+
+### 防抖/节流
+
+通过防抖（debounce）延迟状态更新，只有用户停止输入一段时间后才触发渲染。这是输入框优化的常用方法。
+
+```jsx
+@label: Grok给我的代码
+
+import { useState, useCallback } from "react";
+import { TextInput, View, Text } from "react-native";
+import debounce from "lodash/debounce";
+
+const InputComponent = React.memo(({ value, onChange }) => {
+  return <TextInput value={value} onChangeText={onChange} />;
+});
+
+const MyComponent = () => {
+  const [inputValue, setInputValue] = useState("");
+
+  const debouncedSetInput = useCallback(
+    debounce((text) => {
+      setInputValue(text);
+    }, 500),
+    []
+  );
+
+  const handleChange = (text) => {
+    debouncedSetInput(text);
+  };
+
+  return (
+    <View>
+      <InputComponent value={inputValue} onChange={handleChange} />
+      <Text>Preview: {inputValue}</Text>
+    </View>
+  );
+};
+
+export default MyComponent;
+```
+
+这里就不展开讲防抖/节流了。我比较疑惑的点是，useCallback 为什么在这里出现，它有什么用？
+
+## useCallback
+
+### useCallback 是什么？
+
+与用于缓存函数结果的 useMemo 不同的是，useCallback 用于缓存函数本身的定义。
+
+```jsx
+@label: 返回一个记忆化的回调函数，只有当其依赖项发生变化时，函数才会重新创建。
+
+const memoizedCallback = useCallback(() => {
+    // 函数逻辑
+}, [dependency1, dependency2]);
+```
+
+- 第一个参数：要缓存的函数。
+- 第二个参数：依赖数组（dependencies），当数组中的值变化时，函数重新生成。
+
+### useCallback 的由来
+
+在 React 中，函数组件每次渲染时，所有顶层定义的函数都会被重新创建，即使函数的内容没有变化。
+
+```jsx
+import { useCallback, useState } from "react";
+
+const MyComponent = () => {
+  const [count, setCount] = useState(0);
+
+  // 缓存的函数，只有依赖变化时重新创建
+  const increment = useCallback(() => {
+    setCount((prev) => prev + 1);
+  }, []); // 空依赖数组，函数永不更新
+
+  return (
+    <div>
+      <p>Count: {count}</p>
+      <button onClick={increment}>Increment</button>
+    </div>
+  );
+};
+
+export default MyComponent;
+```
+
+### 核心概念
+
+通过以下的两个例子，能够直观地理解为什么函数会被重新创建，以及 useCallback 和 useMemo 的结合。
+
+```jsx
+@label: 优化前
+
+import { useCallback, useState } from "react";
+import { Text, View, Button } from "react-native";
+
+// 使用 React.memo 包裹子组件
+const ChildComponent = React.memo(({ onClick }) => {
+  console.log("ChildComponent rendered");
+  return <Button title="Click me" onPress={onClick} />;
+});
+
+const MyComponent = () => {
+  const [count, setCount] = useState(0);
+
+  // 未使用 useCallback
+  const handleClick = () => {
+    setCount((prev) => prev + 1);
+  };
+
+  return (
+    <View>
+      <Text>Count: {count}</Text>
+      <ChildComponent onClick={handleClick} />
+    </View>
+  );
+};
+```
+
+**问题**：每次 MyComponent 渲染，handleClick 是新函数，ChildComponent 会重新渲染，即使它被 React.memo 包裹。
+
+```jsx
+@label:优化后
+const MyComponent = () => {
+  const [count, setCount] = useState(0);
+
+  // 使用 useCallback 缓存函数
+  const handleClick = useCallback(() => {
+    setCount((prev) => prev + 1);
+  }, []); // 无依赖，函数保持不变
+
+  return (
+    <View>
+      <Text>Count: {count}</Text>
+      <ChildComponent onClick={handleClick} />
+    </View>
+  );
+};
+```
+
+**效果**：handleClick 引用不变，ChildComponent 只有在其他 props 变化时才会渲染。
+
+### 反例
+
+到这里，我有疑惑：那么在哪些情况下，函数的引用会改变呢？在我当时的印象中，函数内的逻辑，应该都是不变的呀。
+
+下面这段代码消除了我的疑惑：
+
+```jsx
+@label: 这里的 count 可以是一个 state
+
+const handleClick = useCallback(() => {
+  console.log(`Count is ${count}`);
+}, [count]); // 依赖 count，当 count 变时函数更新
+```
+
+还有这个：
+
+```jsx
+@label: 函数的逻辑依赖于每次渲染时动态生成的对象或函数
+
+const MyComponent = () => {
+  const [data, setData] = useState({ value: 0 });
+
+  const dynamicObject = { currentValue: data.value }; // 每次渲染都生成新对象
+
+  const handleClick = useCallback(() => {
+    console.log(dynamicObject.currentValue); // 依赖动态对象
+  }, [dynamicObject]); // 依赖每次都变
+
+  return <button onClick={handleClick}>Click</button>;
+};
+```
+
+## useCallback 的应用场景
+
+### 将函数作为 props 传递给 React.memo 包裹的子组件
+
+当子组件使用 React.memo 来避免不必要的渲染时，如果父组件传递的函数引用在每次渲染时都变化，子组件会认为 props 变了，从而重新渲染。useCallback 可以保持函数引用稳定，防止这种情况。
+
+```jsx
+import { useState, useCallback } from "react";
+import { View, Text, Button } from "react-native";
+
+// 使用 React.memo 包裹子组件
+const ChildComponent = React.memo(({ onClick }) => {
+  console.log("ChildComponent rendered");
+  return <Button title="Click me" onPress={onClick} />;
+});
+
+const ParentComponent = () => {
+  const [count, setCount] = useState(0);
+
+  // 缓存函数，保持引用稳定
+  const handleClick = useCallback(() => {
+    setCount((prev) => prev + 1);
+  }, []); // 无依赖，函数只创建一次
+
+  return (
+    <View>
+      <Text>Count: {count}</Text>
+      <ChildComponent onClick={handleClick} />
+    </View>
+  );
+};
+```
+
+- **问题**：如果不使用 useCallback，handleClick 每次渲染都是新函数，ChildComponent 会重复渲染。
+- **效果**：用 useCallback 后，ChildComponent 只有在其他 props 变化时才渲染。
+
+### 优化频繁触发的事件处理函数
+
+在事件处理（如输入框的 onChange 或按钮的 onClick）中，如果函数涉及复杂逻辑或被频繁调用，使用 useCallback 可以结合防抖（debounce）或节流（throttle），确保回调函数引用稳定，避免重复创建。
+
+```jsx
+import { useState, useCallback } from "react";
+import { TextInput } from "react-native";
+import debounce from "lodash/debounce";
+
+const SearchComponent = () => {
+  const [query, setQuery] = useState("");
+
+  // 缓存防抖后的搜索函数
+  const handleSearch = useCallback(
+    debounce((text) => {
+      console.log("Searching:", text);
+      setQuery(text);
+    }, 500),
+    [] // 无依赖，防抖函数只创建一次
+  );
+
+  return (
+    <TextInput
+      value={query}
+      onChangeText={handleSearch}
+      placeholder="Type to search"
+    />
+  );
+};
+```
+
+- **问题**：如果不使用 useCallback，handleSearch 每次渲染都重新创建防抖函数，失去防抖效果。
+- **效果**：用 useCallback 后，防抖函数引用稳定，用户输入时只在停止 500ms 后触发。
+
+## 合理地使用 useCallback
+
+- 如果函数仅在当前组件内部使用，且不传递给子组件，无需缓存。
+
+```jsx
+@label: 函数不影响子组件渲染
+
+const MyComponent = () => {
+  const handleClick = () => console.log("Clicked"); // 无需 useCallback
+  return <button onClick={handleClick}>Click</button>;
+};
+```
+
+- 如果函数依赖的状态或 props 频繁更新，useCallback 无法保持稳定，等价于不缓存。**渲染成本低**
+- 如果组件渲染开销很小，缓存函数的收益不明显，反而增加代码复杂性。

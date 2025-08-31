@@ -1,0 +1,142 @@
+---
+title: "HOC"
+publishedAt: "2025-03-25"
+tag: "React Deep Dive 系列"
+---
+
+简单来说，HOC（Higher-Order Component）就是一个函数；其中
+
+- 参数：一个将要被包裹的子组件
+- 返回值：一个进行包裹后的改善组件
+  - 包裹后的改善组件，接收的参数有两种用途：
+    - 用于传给被包裹的子组件
+    - 用于进行逻辑的处理，但是没有直接传给被包裹的子组件
+
+## 子组件定义
+
+这里的子组件，指的就是位于最内层的组件。为了方便理解，就先把将要被包裹的组件具体长什么样先定义出来。
+
+注意，这个子组件是接受一个 data 参数的，这点对于后面 props 传输的理解来说很重要。
+
+```jsx
+@label: WrappedComponent的具体内容
+
+function DataList({ data }) {
+  return (
+    <ul>
+      {data.map((item, index) => (
+        <li key={index}>{item}</li>
+      ))}
+    </ul>
+  );
+}
+```
+
+## 第一步｜定义高阶组件及其生成函数
+
+这里的 `WrappedComponent` ，就是将要被包裹的子组件。
+
+这里比较容易困惑的点，就是 `WithLoadingComponent` 中接收的参数分别是什么；为什么其中一个是很具体地定义了参数名叫做 `isLoading` ；而其它的参数没有具体地定义，而是用扩展运算符+props 来表示？
+
+- isLoading：之所以具体地定义了参数名，是因为 `isLoading` 这个属性，和 `withLoading` 这个高阶组件的功能**息息相关**。withLoading 这个高阶组件的特性就是，能够根据 `isLoading` 字段，来判定是否展示被传进来的子组件 `WrappedComponent`
+- props：正是因为 `WithLoadingComponent` 的特性，该高阶组件并不关心子组件具体是什么。它可以是任意类型；可以是例子中的无序列表 `ul` ，也能是一个图片 `image` 。因此，由于传入的子组件 `WrappedComponent` 类型和参数都是动态的，所以没办法预先将所有的子组件参数都明确定义出来。所以，`WithLoadingComponent` 的子组件参数，是以扩展运算符+props 的形式定义（这里的 props 只是一个常见的命名，实际上可以是任意变量名）。
+
+通过这种方式，HOC 保证了：
+
+- 自身逻辑的专一性：该高阶组件有一个特定并明确的用途
+- 同时也保证了子组件的灵活性：可以传入任意组件和组件参数
+
+```jsx
+@label: 定义 withLoading 高阶组件
+
+import React from "react";
+
+function withLoading(WrappedComponent) {
+  return function WithLoadingComponent({ isLoading, ...props }) {
+    if (isLoading) {
+      return <div>Loading...</div>;
+    } else {
+      return <WrappedComponent {...props} />;
+    }
+  };
+}
+
+export default withLoading;
+```
+
+这里比较容易混淆的一个概念，就是高阶组件和高阶组件的生成函数。
+
+- `withLoading`：只是一个高阶组件的生成函数，而并不是「高阶组件」本身
+- `WithLoadingComponent`：作为高阶组件生成函数的返回值，它才是真正的高阶组件。为什么返回的是一个函数，却叫它组件呢？因为它是一个函数式组件（Function Component）
+
+## 第二步｜定义子组件
+
+这里的 `DataList` 就是和上文子组件定义中提到的 `DataList` 。
+
+可以看到，这里在将`DataList`作为参数传入高阶组件的生成函数 `withLoading` 的时候，并没有将其需要接收 data 的参数传入，而仅是将**子组件本身**传入高阶组件的生成函数。
+
+这时候， `DataListWithLoading` 本身是没有任何用处的，它只是作为一个变量，接收了 withLoading 返回的高阶组件；而真正要使用高阶组件，需要对其进行**传参**。
+
+```jsx
+@label: 定义 DataList 子组件
+
+import React from "react";
+import withLoading from "./withLoading";
+
+function DataList({ data }) {
+  return (
+    <ul>
+      {data.map((item, index) => (
+        <li key={index}>{item}</li>
+      ))}
+    </ul>
+  );
+}
+
+const DataListWithLoading = withLoading(DataList);
+
+export default DataListWithLoading;
+```
+
+## 第三步｜使用高阶组件
+
+很多情况下，数据是在具体的页面中进行获取的；而不同的页面中，尽管数据不同，也有可能用到相同的组件。这也是为什么子组件的参数是在高阶组件「实例化」的时候进行传入，而非在生成高阶组件的时候就传入。
+
+这提高了高阶组件的可复用性，以及提升了代码的模块化。
+
+```jsx
+import React, { useState, useEffect } from "react";
+import DataListWithLoading from "./DataListWithLoading";
+
+function App() {
+  const [data, setData] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      setIsLoading(true);
+      const response = await fetch("https://api.example.com/data");
+      const data = await response.json();
+      setData(data);
+      setIsLoading(false);
+    };
+
+    fetchData();
+  }, []);
+
+  return (
+    <div>
+      <h1>Data List</h1>
+      <DataListWithLoading data={data} isLoading={isLoading} />
+    </div>
+  );
+}
+
+export default App;
+```
+
+## Reference
+
+- [高阶组件（HOC）在 React 中的应用](https://juejin.cn/post/7220677873584734268)
+
+[这个视频中没有展示 WrappedComponent 的传参，但是对于理解高阶组件还是有帮助](https://www.youtube.com/watch?v=W-rIDc2yt-0)

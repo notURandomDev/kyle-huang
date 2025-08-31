@@ -1,0 +1,35 @@
+---
+title: "React中UI更新核心机制"
+publishedAt: "2025-03-15"
+tag: "React Deep Dive 系列"
+---
+
+## UI 更新核心机制
+
+### Reconciliation
+
+在调用`render()`函数之后，React 会生成一个 element tree，本质上是一系列 JS 对象（Objects）。
+
+这棵 tree of elements 处于内存中，称为 Virtual DOM。
+
+React 需要做的工作，就是将 Virtual DOM 和 Real DOM 进行同步。
+
+- 在初步渲染时，会将整棵 Virtual DOM 进行插入操作
+- 初步渲染之后，如果 Virtual DOM 中有某些元素发生了变化，会生成一颗新的 Virtual DOM tree。如果将整棵树进行替换，开销非常大。因此，React 会使用 Diffing 算法，将进行替换的操作量最小化
+
+### Diffing Algorithm
+
+Diffing 算法具体体现在以下情景：
+
+- 类型不同：如果更新后的 DOM 类型不同，如 div 变成了 span，那么 React 会将该组件卸载（unmount）后重新装载（re-mount）
+- 元素相同：如果更新的元素相同，但是某些参数变化（如 classname），那么 React 只会将该 Virtual DOM 的 props 字段进行修改，而不会重新渲染
+- 组件更新：如果传入组件的参数发生了变化，那么会触发 render()函数进行重新渲染
+- 子元素：如果在相同位置的子元素发生了变化，React 会重新渲染一个 Virtual DOM Tree，尽管树中的其他元素没有发生变化。（如在一个列表的头插入元素，各个位置的元素都会发生变化）
+  - 考虑到 Diffing 算法的这个特性，在使用 map 生成列表的时候不应该将 index 作为元素的 key；最好是能够使用一个固定的 id 作为其 key，这样在插入元素的时候就能够优化性能，避免不必要的重渲染。当然，如果列表的元素是固定的，key 的生成标准就没有那么严格。
+
+### Rendering
+
+React 这个包，其实并没有涉及到渲染，其主要的作用是：
+
+- 定义组件、元素
+- diffing 算法的实现

@@ -1,0 +1,13 @@
+---
+title: "useEffect"
+publishedAt: "2025-03-28"
+tag: "React Deep Dive 系列"
+---
+
+## 清理函数
+
+### 在清理函数中使用 setState
+
+我尝试在组件卸载的时候，保存聊天数据；但是这时候，存储消息的 state-messages 是暂未更新的，所以我尝试在卸载之前将 messages 的 state 更新之后，进行聊天数据的保存，最终再卸载。
+
+但是实际上，React 并没有像我预想的那样运行。通过 log 打断点，我发现清理函数中调用的 setState 根本就没有运行；但是同步的代码还是有执行的。
