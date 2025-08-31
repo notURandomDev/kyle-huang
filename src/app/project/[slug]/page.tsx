@@ -14,6 +14,8 @@ import {
   Row,
   Avatar,
   Line,
+  Badge,
+  HeadingNav,
 } from "@once-ui-system/core";
 import { baseURL, about, person, work } from "@/resources";
 import { formatDate } from "@/utils/formatDate";
@@ -22,7 +24,7 @@ import { Metadata } from "next";
 import { Projects } from "@/components/work/Projects";
 
 export async function generateStaticParams(): Promise<{ slug: string }[]> {
-  const posts = getPosts(["src", "app", "work", "projects"]);
+  const posts = getPosts(["src", "app", "project", "projects"]);
   return posts.map((post) => ({
     slug: post.slug,
   }));
@@ -38,16 +40,17 @@ export async function generateMetadata({
     ? routeParams.slug.join("/")
     : routeParams.slug || "";
 
-  const posts = getPosts(["src", "app", "work", "projects"]);
+  const posts = getPosts(["src", "app", "project", "projects"]);
   let post = posts.find((post) => post.slug === slugPath);
 
   if (!post) return {};
 
   return Meta.generate({
-    title: post.metadata.title,
+    title: `${post.metadata.name}`,
     description: post.metadata.summary,
     baseURL: baseURL,
-    image: post.metadata.image || `/api/og/generate?title=${post.metadata.title}`,
+    image:
+      post.metadata.image || `/api/og/generate?title=${post.metadata.title}`,
     path: `${work.path}/${post.slug}`,
   });
 }
@@ -62,16 +65,25 @@ export default async function Project({
     ? routeParams.slug.join("/")
     : routeParams.slug || "";
 
-  let post = getPosts(["src", "app", "work", "projects"]).find((post) => post.slug === slugPath);
+  let post = getPosts(["src", "app", "project", "projects"]).find(
+    (post) => post.slug === slugPath
+  );
 
   if (!post) {
     notFound();
   }
 
   const avatars =
-    post.metadata.team?.map((person) => ({
-      src: person.avatar,
-    })) || [];
+    post.metadata.team?.map((person) => {
+      if (!person.avatar)
+        return {
+          value: person.name[0].toUpperCase(),
+        };
+
+      return {
+        src: person.avatar,
+      };
+    }) || [];
 
   return (
     <Column as="section" maxWidth="m" horizontal="center" gap="l">
@@ -84,7 +96,8 @@ export default async function Project({
         datePublished={post.metadata.publishedAt}
         dateModified={post.metadata.publishedAt}
         image={
-          post.metadata.image || `/api/og/generate?title=${encodeURIComponent(post.metadata.title)}`
+          post.metadata.image ||
+          `/api/og/generate?title=${encodeURIComponent(post.metadata.title)}`
         }
         author={{
           name: person.name,
@@ -93,17 +106,31 @@ export default async function Project({
         }}
       />
       <Column maxWidth="s" gap="16" horizontal="center" align="center">
-        <SmartLink href="/work">
-          <Text variant="label-strong-m">Projects</Text>
+        <SmartLink href="/project">
+          <Text variant="label-strong-m">项目经历</Text>
         </SmartLink>
-        <Text variant="body-default-xs" onBackground="neutral-weak" marginBottom="12">
+        <Text
+          variant="body-default-xs"
+          onBackground="neutral-weak"
+          marginBottom="12"
+        >
           {post.metadata.publishedAt && formatDate(post.metadata.publishedAt)}
         </Text>
+        {post.metadata?.githubRepo && (
+          <Badge
+            icon="github"
+            id="badge-3"
+            title={post.metadata.githubRepo}
+            href={`https://github.com/notURandomDev/${post.metadata.githubRepo}`}
+          />
+        )}
         <Heading variant="display-strong-m">{post.metadata.title}</Heading>
       </Column>
       <Row marginBottom="32" horizontal="center">
         <Row gap="16" vertical="center">
-          {post.metadata.team && <AvatarGroup reverse avatars={avatars} size="s" />}
+          {post.metadata.team && (
+            <AvatarGroup reverse avatars={avatars} size="s" />
+          )}
           <Text variant="label-default-m" onBackground="brand-weak">
             {post.metadata.team?.map((member, idx) => (
               <span key={idx}>
@@ -112,14 +139,20 @@ export default async function Project({
                     ,{" "}
                   </Text>
                 )}
-                <SmartLink href={member.linkedIn}>{member.name}</SmartLink>
+                <SmartLink href={member.github}>{member.name}</SmartLink>
               </span>
             ))}
           </Text>
         </Row>
       </Row>
       {post.metadata.images.length > 0 && (
-        <Media priority aspectRatio="16 / 9" radius="m" alt="image" src={post.metadata.images[0]} />
+        <Media
+          priority
+          aspectRatio="16 / 9"
+          radius="m"
+          alt="image"
+          src={post.metadata.images[0]}
+        />
       )}
       <Column style={{ margin: "auto" }} as="article" maxWidth="xs">
         <CustomMDX source={post.content} />
@@ -127,7 +160,7 @@ export default async function Project({
       <Column fillWidth gap="40" horizontal="center" marginTop="40">
         <Line maxWidth="40" />
         <Heading as="h2" variant="heading-strong-xl" marginBottom="24">
-          Related projects
+          其它项目
         </Heading>
         <Projects exclude={[post.slug]} range={[2]} />
       </Column>

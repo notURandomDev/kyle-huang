@@ -5,7 +5,7 @@ import { baseURL, blog, person, newsletter } from "@/resources";
 
 export async function generateMetadata() {
   return Meta.generate({
-    title: blog.title,
+    title: `${person.name}｜技术博客`,
     description: blog.description,
     baseURL: baseURL,
     image: `/api/og/generate?title=${encodeURIComponent(blog.title)}`,
@@ -37,7 +37,7 @@ export default function Blog() {
         <Posts range={[2, 3]} columns="2" thumbnail direction="column" />
         <Mailchimp marginBottom="l" />
         <Heading as="h2" variant="heading-strong-xl" marginLeft="l">
-          Earlier posts
+          更多博客内容
         </Heading>
         <Posts range={[4]} columns="2" />
       </Column>
