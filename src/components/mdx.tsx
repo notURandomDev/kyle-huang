@@ -34,8 +34,14 @@ type CustomLinkProps = React.AnchorHTMLAttributes<HTMLAnchorElement> & {
 };
 
 function CustomLink({ href, children, ...props }: CustomLinkProps) {
+  const blacklist = ["youtube", "github"];
+
   if (href.includes("https://www.youtube.com") || href.includes("https://youtu.be")) {
     return <Media caption={children} src={href} aspectRatio="16/9" radius="xl" />;
+  }
+
+  if (href.includes("https://") && !blacklist.some((item) => href.includes(item))) {
+    return <OgCard url={href}>{children}</OgCard>;
   }
 
   if (href.startsWith("/")) {
