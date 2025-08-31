@@ -1,4 +1,5 @@
 import { MDXRemote, MDXRemoteProps } from "next-mdx-remote/rsc";
+import { slugify as transliterate } from "transliteration";
 import React, { ReactNode } from "react";
 
 import {
@@ -24,6 +25,7 @@ import {
   List,
   ListItem,
   Line,
+  OgCard,
 } from "@once-ui-system/core";
 
 type CustomLinkProps = React.AnchorHTMLAttributes<HTMLAnchorElement> & {
@@ -32,6 +34,15 @@ type CustomLinkProps = React.AnchorHTMLAttributes<HTMLAnchorElement> & {
 };
 
 function CustomLink({ href, children, ...props }: CustomLinkProps) {
+  if (
+    href.includes("https://www.youtube.com") ||
+    href.includes("https://youtu.be")
+  ) {
+    return (
+      <Media caption={children} src={href} aspectRatio="16/9" radius="xl" />
+    );
+  }
+
   if (href.startsWith("/")) {
     return (
       <SmartLink href={href} {...props}>
@@ -71,18 +82,27 @@ function createImage({ alt, src, ...props }: MediaProps & { src: string }) {
       sizes="(max-width: 960px) 100vw, 960px"
       alt={alt}
       src={src}
+      caption={alt}
       {...props}
     />
   );
 }
 
+// function slugify(str: string): string {
+//   return str
+//     .toLowerCase()
+//     .replace(/\s+/g, "-") // Replace spaces with -
+//     .replace(/&/g, "-and-") // Replace & with 'and'
+//     .replace(/[^\w\-]+/g, "") // Remove all non-word characters except for -
+//     .replace(/\-\-+/g, "-"); // Replace multiple - with single -
+// }
+
 function slugify(str: string): string {
-  return str
-    .toLowerCase()
-    .replace(/\s+/g, "-") // Replace spaces with -
-    .replace(/&/g, "-and-") // Replace & with 'and'
-    .replace(/[^\w\-]+/g, "") // Remove all non-word characters except for -
-    .replace(/\-\-+/g, "-"); // Replace multiple - with single -
+  const strWithAnd = str.replace(/&/g, " and "); // Replace & with 'and'
+  return transliterate(strWithAnd, {
+    lowercase: true,
+    separator: "-", // Replace spaces with -
+  }).replace(/\-\-+/g, "-"); // Replace multiple - with single -
 }
 
 function createHeading(as: "h1" | "h2" | "h3" | "h4" | "h5" | "h6") {
@@ -92,7 +112,13 @@ function createHeading(as: "h1" | "h2" | "h3" | "h4" | "h5" | "h6") {
   }: Omit<React.ComponentProps<typeof HeadingLink>, "as" | "id">) => {
     const slug = slugify(children as string);
     return (
-      <HeadingLink marginTop="24" marginBottom="12" as={as} id={slug} {...props}>
+      <HeadingLink
+        marginTop="24"
+        marginBottom="12"
+        as={as}
+        id={slug}
+        {...props}
+      >
         {children}
       </HeadingLink>
     );
@@ -123,12 +149,18 @@ function createInlineCode({ children }: { children: ReactNode }) {
 
 function createCodeBlock(props: any) {
   // For pre tags that contain code blocks
-  if (props.children && props.children.props && props.children.props.className) {
+  if (
+    props.children &&
+    props.children.props &&
+    props.children.props.className
+  ) {
     const { className, children } = props.children.props;
 
     // Extract language from className (format: language-xxx)
     const language = className.replace("language-", "");
-    const label = language.charAt(0).toUpperCase() + language.slice(1);
+
+    // Extract custom label from comment and clean code
+    const { label, code } = extractLabelAndCleanCode(children, language);
 
     return (
       <CodeBlock
@@ -136,7 +168,7 @@ function createCodeBlock(props: any) {
         marginBottom="16"
         codes={[
           {
-            code: children,
+            code,
             language,
             label,
           },
@@ -148,6 +180,38 @@ function createCodeBlock(props: any) {
 
   // Fallback for other pre tags or empty code blocks
   return <pre {...props} />;
+}
+
+function extractLabelAndCleanCode(children: string, fallbackLanguage: string) {
+  // Split code into lines
+  const lines = children.split("\n");
+  const fallbackLanguageLabel =
+    fallbackLanguage.charAt(0).toUpperCase() + fallbackLanguage.slice(1);
+
+  // If the code block is empty, return the fallback language label
+  if (lines.length === 0) {
+    return {
+      label: fallbackLanguageLabel,
+      code: children,
+    };
+  }
+
+  const firstLine = lines[0].trim();
+  let label = fallbackLanguageLabel;
+  let code = children;
+
+  // Check for special MDX renderer label comment: @label: xxx
+  const specialLabelMatch = firstLine.match(/^@label:\s*(.+)$/);
+  if (specialLabelMatch) {
+    label = specialLabelMatch[1].trim();
+    // Remove the label comment line and the following empty line if it exists
+    const startIndex = lines[1]?.trim() === "" ? 2 : 1;
+    code = lines.slice(startIndex).join("\n");
+    return { label, code };
+  }
+
+  // No custom label found, use fallback
+  return { label, code };
 }
 
 function createList({ children }: { children: ReactNode }) {
@@ -169,6 +233,28 @@ function createHR() {
     </Row>
   );
 }
+
+// function createQuote(props: any) {
+//   const quoteNode = props.children.find((el: any) => el !== "\n");
+
+//   const quote = quoteNode.props.children;
+//   console.log("[createQuote] quote:", quote);
+
+//   return (
+//     <Row fillWidth>
+//       <Line vert height="20" />
+//       <Text
+//         style={{ lineHeight: "175%" }}
+//         variant="body-strong-m"
+//         onBackground="neutral-medium"
+//         marginTop="8"
+//         marginBottom="12"
+//       >
+//         {quote}
+//       </Text>
+//     </Row>
+//   );
+// }
 
 const components = {
   p: createParagraph as any,
@@ -202,6 +288,7 @@ const components = {
   Icon,
   Media,
   SmartLink,
+  OgCard,
 };
 
 type CustomMDXProps = MDXRemoteProps & {
@@ -209,5 +296,10 @@ type CustomMDXProps = MDXRemoteProps & {
 };
 
 export function CustomMDX(props: CustomMDXProps) {
-  return <MDXRemote {...props} components={{ ...components, ...(props.components || {}) }} />;
+  return (
+    <MDXRemote
+      {...props}
+      components={{ ...components, ...(props.components || {}) }}
+    />
+  );
 }
