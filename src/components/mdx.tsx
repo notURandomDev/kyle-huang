@@ -40,9 +40,12 @@ function CustomLink({ href, children, ...props }: CustomLinkProps) {
     return <Media caption={children} src={href} aspectRatio="16/9" radius="xl" />;
   }
 
-  if (href.includes("https://") && !blacklist.some((item) => href.includes(item))) {
-    return <OgCard url={href}>{children}</OgCard>;
-  }
+  // if (
+  //   href.includes("https://") &&
+  //   !blacklist.some((item) => href.includes(item))
+  // ) {
+  //   return <OgCard url={href}>{children}</OgCard>;
+  // }
 
   if (href.startsWith("/")) {
     return (
