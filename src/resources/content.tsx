@@ -46,14 +46,14 @@ const home: Home = {
     display: true,
     title: (
       <Row gap="12" vertical="center">
-        <strong className="ml-4">useState</strong>{" "}
+        <strong className="ml-4">once-ui：首次参与开源项目</strong>{" "}
         <Line background="brand-alpha-strong" vert height="20" />
         <Text marginRight="4" onBackground="brand-medium">
           精选博客
         </Text>
       </Row>
     ),
-    href: "/blog/react-deep-dive-use-state",
+    href: "/blog/once-ui-getting-involved",
   },
   subline: <>Hi～ 我是一个热衷于用代码解决实际问题的前端工程师 💻</>,
 };
