@@ -45,12 +45,12 @@ function CustomLink({ href, children, ...props }: CustomLinkProps) {
     );
   }
 
-  if (
-    href.includes("https://") &&
-    !blacklist.some((item) => href.includes(item))
-  ) {
-    return <OgCard url={href}>{children}</OgCard>;
-  }
+  // if (
+  //   href.includes("https://") &&
+  //   !blacklist.some((item) => href.includes(item))
+  // ) {
+  //   return <OgCard url={href}>{children}</OgCard>;
+  // }
 
   if (href.startsWith("/")) {
     return (
