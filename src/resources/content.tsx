@@ -5,7 +5,7 @@ const person: Person = {
   firstName: "Kyle",
   lastName: "Huang",
   name: `Kyle Huang`,
-  role: "前端工程师",
+  role: "全栈工程师",
   avatar: "/images/avatar.png",
   email: "1250901577@qq.com",
   location: "Asia/Shanghai", // Expecting the IANA time zone identifier, e.g., 'Europe/Vienna'
@@ -79,14 +79,18 @@ const about: About = {
     title: "个人介绍",
     description: (
       <>
-        Hi~
-        我是Kyle，一个具有全栈开发能力的前端工程师；事实上，我更倾向于认为自己是一个善于解决问题的开发者。平时会关注一些
-        AI、技术开源领域的最新动态。
+        👋 Hi～ 我是一个具有全栈开发能力的工程师 ⌨️
         <br /> <br />
-        我有代码洁癖，喜欢重构代码，对高效的系统架构情有独钟；但我非常认同过早进行性能优化反而会降低开发效率。
+        我做过和构建系统相关的系统架构 、提升研发效率相关的DevOps工作；写过后端API服务。
+        尽管如此，我还是对前端开发情有独钟 💘
         <br /> <br />
-        Project-Based Learning
-        是我最喜欢的一种学习方式，因为用代码解决实际应用问题是最容易理解技术的路径！
+        React.js 是我的核心技术栈，BaaS 是我独立开发的好帮手
+        👬；在设计产品时，我习惯从用户角度出发，探索最佳的交互模式。
+        <br /> <br />
+        我有丰富的项目经验 👨‍💻，做过 Web、RN跨平台、微信小程序，以及 iOS 和 Android
+        的原生开发；Project-Based Learning 是我最喜欢的学习方式！
+        <br /> <br />
+        近期，我积极参与开源社区的项目，努力从开源文化的消费者转变为贡献者 💪
       </>
     ),
   },
