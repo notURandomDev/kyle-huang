@@ -61,7 +61,7 @@ const home: Home = {
 const about: About = {
   path: "/resume",
   label: "简历",
-  title: `${person.name}｜简历`,
+  title: `${person.name} - 简历`,
   description: `Meet ${person.name}, ${person.role} from ${person.location}`,
   tableOfContent: {
     display: true,
@@ -239,39 +239,24 @@ const work: Work = {
 
 const gallery: Gallery = {
   path: "/gallery",
-  label: "Gallery",
-  title: `Photo gallery – ${person.name}`,
-  description: `A photo collection by ${person.name}`,
+  label: "键盘",
+  title: `${person.name} - 键盘`,
+  description: `${person.name}'s Keyboard Collection`,
   // Images by https://lorant.one
   // These are placeholder images, replace with your own
   images: [
     {
-      src: "/images/gallery/horizontal-1.jpg",
+      src: "/images/gallery/horizontal-2.jpg",
       alt: "image",
       orientation: "horizontal",
     },
     {
-      src: "/images/gallery/vertical-4.jpg",
+      src: "/images/gallery/horizontal-5.jpg",
       alt: "image",
-      orientation: "vertical",
+      orientation: "horizontal",
     },
     {
       src: "/images/gallery/horizontal-3.jpg",
-      alt: "image",
-      orientation: "horizontal",
-    },
-    {
-      src: "/images/gallery/vertical-1.jpg",
-      alt: "image",
-      orientation: "vertical",
-    },
-    {
-      src: "/images/gallery/vertical-2.jpg",
-      alt: "image",
-      orientation: "vertical",
-    },
-    {
-      src: "/images/gallery/horizontal-2.jpg",
       alt: "image",
       orientation: "horizontal",
     },
@@ -280,8 +265,9 @@ const gallery: Gallery = {
       alt: "image",
       orientation: "horizontal",
     },
+
     {
-      src: "/images/gallery/vertical-3.jpg",
+      src: "/images/gallery/vertical-1.jpg",
       alt: "image",
       orientation: "vertical",
     },
