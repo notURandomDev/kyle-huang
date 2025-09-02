@@ -144,7 +144,7 @@ export default function Home() {
           </Row>
         </Column>
       )}
-      <Projects range={[1]} exclude={["lark-clone"]} />
+      {/* <Projects range={[1]} exclude={["lark-clone"]} /> */}
       <Mailchimp />
     </Column>
   );

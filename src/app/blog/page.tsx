@@ -5,7 +5,7 @@ import { baseURL, blog, person, newsletter } from "@/resources";
 
 export async function generateMetadata() {
   return Meta.generate({
-    title: `${person.name}｜技术博客`,
+    title: `${person.name} - 技术博客`,
     description: blog.description,
     baseURL: baseURL,
     image: `/api/og/generate?title=${encodeURIComponent(blog.title)}`,
