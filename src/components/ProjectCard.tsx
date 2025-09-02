@@ -10,6 +10,13 @@ import {
   Text,
 } from "@once-ui-system/core";
 
+interface AutoPlayConfig {
+  auto?: boolean;
+  interval?: number;
+  controls?: boolean;
+  progress?: boolean;
+}
+
 interface ProjectCardProps {
   href: string;
   priority?: boolean;
@@ -19,6 +26,7 @@ interface ProjectCardProps {
   description: string;
   avatars: { src: string }[];
   link: string;
+  autoPlayConfig?: AutoPlayConfig;
 }
 
 export const ProjectCard: React.FC<ProjectCardProps> = ({
@@ -29,10 +37,12 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
   description,
   avatars,
   link,
+  autoPlayConfig = {},
 }) => {
   return (
     <Column fillWidth gap="m">
       <Carousel
+        play={autoPlayConfig}
         sizes="(max-width: 960px) 100vw, 960px"
         items={images.map((image) => ({
           slide: image,

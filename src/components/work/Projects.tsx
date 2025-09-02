@@ -41,6 +41,12 @@ export function Projects({ range, exclude }: ProjectsProps) {
             post.metadata.team?.map((member) => ({ src: member.avatar })) || []
           }
           link={post.metadata.link || ""}
+          autoPlayConfig={{
+            auto: post.metadata.images.length > 1 ? true : false,
+            interval: 5000,
+            controls: true,
+            progress: post.metadata.images.length > 1 ? true : false,
+          }}
         />
       ))}
     </Column>
