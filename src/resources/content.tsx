@@ -63,16 +63,6 @@ const home: Home = {
     href: "/blog/once-ui-getting-involved",
   },
   subline: (
-    // <>
-    //   I'm Selene, a design engineer at{" "}
-    //   <Logo
-    //     dark
-    //     icon="/trademarks/wordmark-dark.svg"
-    //     style={{ display: "inline-flex", top: "0.25em", marginLeft: "-0.25em" }}
-    //   />
-    //   , where I craft intuitive
-    //   <br /> user experiences. After hours, I build my own projects.
-    // </>
     // <>“代码是用来让人读的，只是顺便让机器执行而已”</>
     <>Hi～ 我是一个热衷于用代码解决实际问题的全栈工程师 💻</>
   ),
@@ -81,7 +71,7 @@ const home: Home = {
 const about: About = {
   path: "/resume",
   label: "简历",
-  title: `${person.name}｜简历`,
+  title: `${person.name} - 简历`,
   description: `Meet ${person.name}, ${person.role} from ${person.location}`,
   tableOfContent: {
     display: true,
@@ -277,39 +267,24 @@ const work: Work = {
 
 const gallery: Gallery = {
   path: "/gallery",
-  label: "Gallery",
-  title: `Photo gallery – ${person.name}`,
-  description: `A photo collection by ${person.name}`,
+  label: "键盘",
+  title: `${person.name} - 键盘`,
+  description: `${person.name}'s Keyboard Collection`,
   // Images by https://lorant.one
   // These are placeholder images, replace with your own
   images: [
     {
-      src: "/images/gallery/horizontal-1.jpg",
+      src: "/images/gallery/horizontal-2.jpg",
       alt: "image",
       orientation: "horizontal",
     },
     {
-      src: "/images/gallery/vertical-4.jpg",
+      src: "/images/gallery/horizontal-5.jpg",
       alt: "image",
-      orientation: "vertical",
+      orientation: "horizontal",
     },
     {
       src: "/images/gallery/horizontal-3.jpg",
-      alt: "image",
-      orientation: "horizontal",
-    },
-    {
-      src: "/images/gallery/vertical-1.jpg",
-      alt: "image",
-      orientation: "vertical",
-    },
-    {
-      src: "/images/gallery/vertical-2.jpg",
-      alt: "image",
-      orientation: "vertical",
-    },
-    {
-      src: "/images/gallery/horizontal-2.jpg",
       alt: "image",
       orientation: "horizontal",
     },
@@ -318,8 +293,9 @@ const gallery: Gallery = {
       alt: "image",
       orientation: "horizontal",
     },
+
     {
-      src: "/images/gallery/vertical-3.jpg",
+      src: "/images/gallery/vertical-1.jpg",
       alt: "image",
       orientation: "vertical",
     },
