@@ -20,7 +20,7 @@ const routes: RoutesConfig = {
   "/resume": true,
   "/project": true,
   "/blog": true,
-  "/gallery": true,
+  "/gallery": false,
 };
 
 const display: DisplayConfig = {
