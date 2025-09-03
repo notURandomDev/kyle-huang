@@ -1,0 +1,150 @@
+---
+title: "Crate Universe源码魔改：加速Rust一方库的Bazel迁移"
+image: "/images/blogs/bazel-crate-universe/cover-01.png"
+publishedAt: "2025-09-04"
+tag: "深入理解 Bazel"
+---
+
+在将 Rust 项目从 Cargo 构建系统迁移到 Bazel 构建系统的工作中，涉及到了一方库和三方库（crate）。
+
+对于项目中所有用到的三方库而言，采用 Crate Universe 对它们进行处理是官方推荐的姿势。在 MODULE.bazel 声明所有一方库的 Cargo.toml ，Crate Universe 就能够对这些三方库进行解析；最终生成一个包含这些 BUILD.bazel 外部仓库。
+
+换言之，Crate Universe 具有这样的能力：
+
+![](/images/blogs/bazel-crate-universe/image-01.png)
+
+[「官方文档」crate_universe (bzlmod) - rules_rust](https://bazelbuild.github.io/rules_rust/crate_universe_bzlmod.html)
+
+## Crate Universe 的能力边界
+
+在不同的项目结构下，Crate Universe 能达成的效果是不同的。大多数 Rust 中大型项目是由很多 local crate 组成的，通过项目根目录下的 Cargo.toml 声明一个 workspace，通过 members 的方式将各个 local crate 联系起来。这些 local crate 也称为一方库，即存在于项目中的 crate。
+
+```toml
+@label: Cargo.toml
+
+[workspace]
+members = [
+		crate1,
+		crate2,
+		...
+]
+```
+
+```python
+@label: MODULE.bazel
+
+crate.from_cargo(
+		name = "crates"
+		manifests = [
+				"//:crate1/Cargo.toml"
+		]
+)
+```
+
+### 一方库中只对三方库有依赖
+
+如果想在这种情况下编译某个一方库，需要在一方库的 BUILD.bazel 中将此一方库本身声明为一个 bazel 的 rust_library 目标；通过 srcs 将一方库本身的代码文件进行声明，在 deps 中通过类似 @crates//:serde 的方式，将 Crate Universe 生成的三方库 rust_library 目标作为此一方库的依赖传入（类似于在 Cargo.toml 中声明 dependencies），然后对这个目标进行编译。
+
+```toml
+@label: crate1/Cargo.toml
+
+[package]
+name = "crate1" # 一方库名称
+
+[dependencies]
+serde = "1.0" # 三方库依赖
+```
+
+```python
+@label: crate1/BUILD.bazel
+
+rust_library(
+		name = "crate1" # 与 Cargo.toml 中声明的一方库名称对应
+		srcs = glob(["src/**/*.rs"]) # 涵盖的rust代码文件
+		deps = ["@crates//:serde"] # 三方库依赖
+)
+```
+
+```bash
+bazel build //crate1:crate1
+```
+
+### 一方库对于其它一方库有依赖
+
+在前一种情况的基础上，需要将一方库的 bazel 目标（rust_library）作为依赖，传给另一个待构建的一方库。
+
+```toml
+@label: crate2/Cargo.toml
+
+[package]
+name = "crate2"
+
+[dependencies]
+serde = "1.0"
+tokio = "1.0"
+```
+
+```python
+@label: crate2/BUILD.bazel
+
+rust_library(
+		name = "crate2"
+		srcs = glob(["src/**/*.rs"])
+		deps = [
+				"@crates//:serde"
+				"@crates//:tokio"
+				"//crate1:crate1" # 依赖的一方库目标
+		]
+)
+```
+
+在这个情况下，MODULE.bazel 中 manifest 的声明就需要拓展了：
+
+```python
+@label: MODULE.bazel
+
+crate.from_cargo(
+		name = "crates"
+		manifests = [
+				"//:crate1/Cargo.toml"
+				"//:crate2/Cargo.toml"
+		]
+)
+```
+
+不同的 Cargo.toml 中可能会声明相同的三方库依赖；Crate Universe 能够对这些依赖进行解析，生成的 @crates 仓库是一个去重过的依赖集合。而 @crates 仓库中究竟要生成哪些三方库的 rust_library 目标，正是通过 crate.from_cargo 的 manifests 进行声明的。
+
+![](/images/blogs/bazel-crate-universe/image-02.png)
+
+### 一方库对很多一方库有依赖
+
+这种情况，就是需要对 crate_universe 进行魔改的最根本原因：一个作为编译入口的一方 crate，可能对 100+ 个其它一方库有依赖。尽管与上种情况的性质是相同的，但是数量上有很大差别的情况下，就出现了问题。
+
+如果还是采取之前的方式，就需要对这上百个一方库依次手动声明其 rust_library 的定义。一个是本身工作量就大，对于每个 crate 需要和其 Cargo.toml 中声明的三方依赖一一对照，写进 deps 数组内；还有就是维护成本高，在 Cargo.toml 中声明的依赖出现变化时，还要手动去修改 rust_library 的 deps 数组。
+
+因此，就需要一种能够自动为一方库生成 BUILD.bazel 的脚本；能够根据这些一方库的源码，生成对应的 rust_library。其实原理上是和三方库 BUILD.bazel 的生成是一样的，因为三方库本质也是 Rust 源码；区别是一方库和三方库所处于的位置不同。一个是在本地，一个是在远端。
+
+## 剖析 Crate Universe 核心源码
+
+### Crate Universe 的原则
+
+Crate Universe 不对一方库进行 BUILD.bazel 的声明，其实是符合预期的行为。换言之，手动对一方库及进行 rust_library 的声明是 Crate Universe 所倡导的思维；因为这样能够对一方库的构建有更细粒度的控制。
+
+### 修改源码
+
+从 Crate Universe 的源码上看，在生成 BUILD.bazel 之前，是有对 Cargo.toml 中声明的 crate 进行过滤的；会把 workspace member 给过滤掉。
+
+```rust
+@label: crate_universe/src/metadata/metadata_annotation.rs
+
+let nodes: Vec<&Node> = metadata
+    .resolve
+    .as_ref()
+    .expect("Metadata is expected to have a resolve graph")
+    .nodes
+    .iter()
+    .filter(|node| !is_workspace_member(&node.id, metadata))
+    .collect();
+```
+
+因此就可以在此处把条件放宽松，使 workspace member 也能被收集为 nodes 一部分，执行后续的操作。如果不想通过这种方式生成某个一方库的 BUILD.bazel，也可以在此处进行筛选。这样就既能使用 Crate Universe 的能力为一方库自动生成 BUILD.bazel，又能保证对于特定一方库的细粒度声明控制。
