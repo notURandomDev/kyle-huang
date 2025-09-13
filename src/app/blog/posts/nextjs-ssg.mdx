@@ -1,0 +1,96 @@
+---
+title: "Next.js：SSG并不是什么新鲜事"
+image: "/images/blogs/nextjs-cover.png"
+publishedAt: "2025-09-13"
+tag: "探索 Next.js 宇宙"
+---
+
+## 什么是 Static Site Generation
+
+SSG 指的是在构建（如 `npm run build` ）的过程中，就把源码渲染成 HTML；这些页面内容可以直接部署在服务器上。
+
+但需要注意的是，SSG 这个名词在 Next.js 中的作用，和这个概念最初作用是有区别的。
+
+## SSG 最初的概念
+
+静态站点生成这个概念，其实很早就已经存在了；比较知名的静态站点生成器有 Jekyll、Hexo 等。在这种模式中，确实是整个站点（所有页面）都是在构建的时候被渲染成 HTML 产物的。
+
+## Next.js 中的 SSG
+
+如果仔细观察 Next.js 应用构建时的行为，就能发现并不是整个站点所有的界面，都被渲染成了 HTML 产物。
+
+![next build 的输出](/images/blogs/nextjs-ssg/image-01.png)
+
+在运行 `next build` 之后，只有部分页面被预渲染成了 HTML 文件。这明显是和 “Static Site Generation” 这个描述有些出入，因为预渲染的行为显然并没有被运用于整个网站的所有页面。
+
+这种描述确实比较迷惑人，但是由于这种在构建时就将页面进行预渲染的行为和 SSG 很像， 所以 Next.js 就沿用了这个概念。为了更好地理解，可以将 SSG 理解成一种**在构建时将页面进行渲染**的行为。而这种行为通常会被应用于那些使用了 generateStaticParams 参数的页面（如博客页面）。
+
+### generateStaticParams 是什么？
+
+```tsx
+// app/blog/[slug]/page.tsx
+export default function BlogPage({ params }) {
+  return <h1>{params.slug}</h1>;
+}
+
+export async function generateStaticParams() {
+  return [{ slug: "hello-next" }, { slug: "rsc-guide" }];
+}
+```
+
+generateStaticParams 返回了一组静态参数对象。尽管这个函数看起来没有被显式调用，但实际上 Next.js 在构建时会将其作为页面组件的参数；可以这么理解：
+
+```tsx
+for (const params of await generateStaticParams()) {
+  const html = renderToString(<BlogPage params={params} />);
+  saveAsStaticHtml(`/blog/${params.slug}.html`, html);
+}
+```
+
+最终在构建产物中，这两个页面会被渲染成 HTML 文件；等待直接部署。
+
+```tsx
+<BlogPage params={{ slug: "hello-next" }} />
+<BlogPage params={{ slug: "rsc-guide" }} />
+```
+
+### 走 SSG 的页面有交互性吗？
+
+“静态生成”指的是在构建时渲染出一个页面的快照，其实和交互性并不会互相冲突。SSG 生成的页面中允许有状态，只不过这些使页面具有交互能力的代码，还是需要下载 JS Bundle 之后通过注水来完成。
+
+### 具有交互性的 SSG 和注水
+
+对于早期具有交互性的 SSG 页面，并没有“注水”这一概念。不过也是要等 JS Bundle 下载完成之后，script tag 成功与 js 文件绑定，页面才有了交互能力。
+
+在前端框架（React/Vue）出现之后，才有了“对 SSG 页面进行注水”这一概念。注水（Hydration）本身其实是一个有很多学问的话题；这里简单来说，注水是针对 React 这种会生成虚拟 DOM 的框架，对预渲染的可交互界面进行的一个必要操作。
+
+## 交互性 ≠ 动态性
+
+既然 SSG 生成的页面是具有交互能力的，那么 Next.js 为什么不对整个站点的所有页面都使用 SSG 策略呢？将所有页面在构建的时候就渲染好部署到 CDN 上，这样能极大地优化首屏加载时间；至于和状态相关的代码通过注水的策略来实现不就好了吗？
+
+### SSG 不适用于有动态内容的页面
+
+对于博客这种内容不会改变的页面来说，这种策略是完全合理的。但是想象一下如果一个总是展示当天新闻的新闻网站首页，也使用这种策略会发生什么？
+
+在构建阶段，会对 API 接口进行一次请求，获取新闻数据；然后 Next.js 会根据获取到的新闻数据将页面渲染成 HTML 页面，这个页面即是构建的产物。
+
+如果就这样把产物部署到服务器上，那么用户每次访问页面看到的内容，总会是网站在构建阶段时请求到的那些新闻数据快照。尽管浏览器紧接着对页面进行了注水的操作，去获取最新的新闻数据并对页面进行重新渲染。但这样仍然会导致用户在每次访问页面的时候，先看到的是陈旧的信息，然后才进行重渲染操作，这种方案明显是不合理的。
+
+### 如何优化动态性强的页面
+
+因此对于这种动态性强的页面，合理的方案是首屏就展示一些预渲染好的 Skeleton 组件，然后再进行注水。尽管这种方案在保证首屏加载速度的同时，避免了陈旧的信息；但还是有一些待改进的方面：
+
+- 展示 Skeleton 时，用户只能看到占位组件，还是需要等待**注水、API 请求、真实数据的渲染**
+- SEO 不友好：Skeleton 优化了用户体验，但是站在搜索引擎的视角来看，还是不能获取到有用的数据
+
+基于这些可优化的点，社区中出现了现代化的解决方案：ISR 和 SSR。
+
+## 总结
+
+使用 SSG 的最佳场景，是将其应用于内容基本不会变化的页面。需要记住的是：
+
+- SSG 是网页预渲染策略的一种，预渲染的时机是在部署前的构建阶段
+- SSG 最大的优点是极快的首屏加载速度
+- SSG 与 “可交互性” 不冲突
+- 合理使用 SSG 能够优化 SEO 的效果
+- 使用前端框架的 SSG 和传统的 SSG 有差异
