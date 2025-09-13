@@ -47,6 +47,12 @@ import {
   FaLinkedin,
   FaX,
   FaThreads,
+  FaXTwitter,
+  FaFacebook,
+  FaPinterest,
+  FaWhatsapp,
+  FaReddit,
+  FaTelegram,
   FaGitlab,
 } from "react-icons/fa6";
 import { TbBrandReactNative } from "react-icons/tb";
@@ -72,6 +78,7 @@ export const iconLibrary: Record<string, IconType> = {
   appwrite: SiAppwrite,
   linkedin: FaLinkedin,
   x: FaX,
+  twitter: FaXTwitter,
   threads: FaThreads,
   arrowUpRightFromSquare: HiArrowTopRightOnSquare,
   document: HiOutlineDocument,
@@ -91,6 +98,11 @@ export const iconLibrary: Record<string, IconType> = {
   git: SiGit,
   androidStudio: SiAndroidstudio,
   xcode: SiXcode,
+  facebook: FaFacebook,
+  pinterest: FaPinterest,
+  whatsapp: FaWhatsapp,
+  reddit: FaReddit,
+  telegram: FaTelegram,
 };
 
 export type IconLibrary = typeof iconLibrary;
