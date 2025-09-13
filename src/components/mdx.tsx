@@ -92,15 +92,6 @@ function createImage({ alt, src, ...props }: MediaProps & { src: string }) {
   );
 }
 
-// function slugify(str: string): string {
-//   return str
-//     .toLowerCase()
-//     .replace(/\s+/g, "-") // Replace spaces with -
-//     .replace(/&/g, "-and-") // Replace & with 'and'
-//     .replace(/[^\w\-]+/g, "") // Remove all non-word characters except for -
-//     .replace(/\-\-+/g, "-"); // Replace multiple - with single -
-// }
-
 function slugify(str: string): string {
   const strWithAnd = str.replace(/&/g, " and "); // Replace & with 'and'
   return transliterate(strWithAnd, {
