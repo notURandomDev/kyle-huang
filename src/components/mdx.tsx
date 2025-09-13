@@ -1,7 +1,6 @@
 import { MDXRemote, MDXRemoteProps } from "next-mdx-remote/rsc";
 import { slugify as transliterate } from "transliteration";
 import React, { ReactNode } from "react";
-import { slugify as transliterate } from "transliteration";
 
 import {
   Heading,
@@ -97,15 +96,6 @@ function createImage({ alt, src, ...props }: MediaProps & { src: string }) {
     />
   );
 }
-
-// function slugify(str: string): string {
-//   return str
-//     .toLowerCase()
-//     .replace(/\s+/g, "-") // Replace spaces with -
-//     .replace(/&/g, "-and-") // Replace & with 'and'
-//     .replace(/[^\w\-]+/g, "") // Remove all non-word characters except for -
-//     .replace(/\-\-+/g, "-"); // Replace multiple - with single -
-// }
 
 function slugify(str: string): string {
   const strWithAnd = str.replace(/&/g, " and "); // Replace & with 'and'
