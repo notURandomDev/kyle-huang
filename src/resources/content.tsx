@@ -121,17 +121,14 @@ const about: About = {
         role: "客户端开发 - 架构小组",
         achievements: [
           <>
-            构建优化：基于 Bazel 改造 Protobuf → Rust Binding 的生成流程，接入远端缓存以复用 PB
-            构建产物，CI 构建性能提升约 30%
+            RustSDK Bazel 改造：将 PB 生成流程从 Cargo 迁至 Bazel，实现产物缓存；pb 增量构建提速
+            61.7%，二次构建缓存提速 94.9%。
           </>,
           <>
-            Monorepo架构优化：参与飞书多端代码向大型单体仓库迁移，复用底层 Rust 代码；完成 Android
-            端 CI 任务脚本适配，适配率 100%
+            Monorepo 迁移：主导 Android 端 CI 迁移，开发路径重定向插件降低适配成本；完成 80% 的 47
+            个任务并清理无用任务。
           </>,
-          <>
-            代码质量提升：开发 Ruby 脚本优化 iOS 编译策略，落地
-            treat_warnings_as_errors；清理仓库冗余 public import，加速编译过程
-          </>,
+          <>iOS 客户端构建优化：通过移除冗余 public import，优化 16 个模块，提升整体构建速度</>,
         ],
         images: [
           // optional: leave the array empty if you don't want to display images
