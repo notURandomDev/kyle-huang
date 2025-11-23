@@ -80,14 +80,26 @@ function createImage({ alt, src, ...props }: MediaProps & { src: string }) {
   return (
     <Media
       marginTop="8"
-      marginBottom="16"
       enlarge
       radius="m"
       border="neutral-alpha-medium"
       sizes="(max-width: 960px) 100vw, 960px"
       alt={alt}
       src={src}
-      caption={alt}
+      caption={
+        <Row
+          as="figcaption"
+          fillWidth
+          textVariant="label-default-s"
+          onBackground="neutral-weak"
+          paddingX="24"
+          paddingY="0"
+          horizontal="center"
+          align="center"
+        >
+          {alt}
+        </Row>
+      }
       {...props}
     />
   );
@@ -126,7 +138,7 @@ function createParagraph({ children }: TextProps) {
       variant="body-default-m"
       onBackground="neutral-medium"
       marginTop="8"
-      marginBottom="12"
+      marginBottom="8"
     >
       {children}
     </Text>
