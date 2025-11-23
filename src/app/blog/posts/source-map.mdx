@@ -1,0 +1,585 @@
+---
+title: "App Store 前端源码泄漏：Source Map 干了什么“好事”？"
+image: "/images/blogs/source-map/cover.png"
+publishedAt: "2025-11-23"
+tag: "Source Map 原理解析"
+---
+
+## 背景
+
+近期，Apple 推出了 [App Store 的 Web 版本](https://apps.apple.com/us/iphone/today)。刚上线不久，就被一个开发者 [rxliuli](https://github.com/rxliuli) 发现网站的 Source Map 忘记关了。很快，TA 借助了 [Save All Resources](https://chromewebstore.google.com/detail/save-all-resources/abpdnfjocnmdomablahdcfnoggeeiedb) 这个插件下载了源码，把代码发布到了 [GitHub](https://github.com/rxliuli/apps.apple.com) 上，并在 Reddit 发了一个[帖子](https://www.reddit.com/r/webdev/comments/1onnzlj/app_store_web_has_exposed_all_its_source_code/)，没过多久就在网上火了。
+如此高调的举动，很难不引起 Apple 官方的注意。很快，GitHub 收到了 DMCA 下架请求，把这个仓库给移除了。
+
+![](/images/blogs/source-map/image-01.png)
+
+尽管如此，该仓库早已被来自全球的开发者进行了上千次的 fork 和 clone 操作。毕竟这可是来自 Apple 的原始未压缩的 Svelte/TypeScript 工程代码，包括了：
+
+- 状态管理逻辑
+- UI 组件
+- 与后端 API 的集成代码
+- 路由配置
+
+那么让全球的开发者学习到 Apple 前端工程源码的最大“功臣”—— Source Map，究竟是个什么？
+
+## 为什么 Source Map 很重要
+
+Source Map 是前端工程开发中非常强大的帮手。或许并非每个前端工程师都能感知到它的存在，但它是我们调试代码过程中不可或缺的一个工具。
+
+### Source Map：启用与禁用的区别
+
+在开发阶段，如果我们的代码有逻辑上的缺陷，最直观的体现就是在浏览器的控制台报错中。
+举个例子，我们创建一个最小化的 React + Vite 应用，然后故意写错一处代码：
+
+![本地代码编辑器的截图](/images/blogs/source-map/image-02.png)
+
+在浏览器的控制台中，我们能看到一处报错：
+
+![](/images/blogs/source-map/image-03.png)
+
+1. 无法读取一个 undefined 类型变量的属性
+2. 报错产生在「App」这个函数中
+3. 产生报错的位置在「App.tsx」这个文件的「第 9 行第 21 列」
+
+我们直接点击右侧的报错位置（图中的 App.tsx:9），就能直接在 Devtools 中跳转到相应的源文件中：
+
+![浏览器 Devtools 中源代码预览视图](/images/blogs/source-map/image-04.png)
+
+至此，一切都显得理所当然。很多人肯定会觉得：源码中哪里出了问题，当然报错的信息也应该原封不动地将具体的 <u>**报错原因**</u>、产生报错的 <u>**代码文件**</u>、 <u>**行列位置**</u> 展示出来。
+殊不知，我们能如此顺理成章地定位报错，是因为 Source Map 为我们做了「Heavy Lifting」！在没有 Source Map 无声的帮助下，控制台中的报错是这样的：
+
+![](/images/blogs/source-map/image-05.png)
+
+1.  无法读取一个 undefined 类型变量的属性
+2.  报错产生在「m」这个函数中
+3.  产生报错的位置在「App.tsx」这个文件的「第 1 行第 673 列」
+
+![](/images/blogs/source-map/table-01.png)
+
+而在未开启 Source Map 的状态下，当我们在浏览器控制台中点击报错的位置，跳转至源码内容中之后，是这样的：
+
+![还认得出来这是你写的代码么？](/images/blogs/source-map/image-06.png)
+
+为什么离开了 Source Map，报错变得难以辨识，调试也更加困难了呢？
+
+### 为什么没有 Source Map，我们就看不懂报错代码了
+
+我们知道，一个在生产环境中运行的 Web 应用，依赖的是运行在浏览器中的 HTML、CSS、JS 资源。
+尽管浏览器中的 JS 代码运行起来的效果，与我们在本地写的 React 源码一致；但是代码本身还是有较大的区别。
+因为在部署一个前端应用之前，我们会对代码进行 <u>**构建**</u> 操作；这就包括了：
+
+- 转译（Transpiling）：TypeScript ➡️ JavaScript；JSX → JS 函数调用；语法降级
+- 代码优化（Pre-Optimization）：Tree Shaking；Dead code elimination；Inline 常量替换
+- 打包（Bundling）：把所有模块打包成少量文件
+- 压缩（Minification）：删除空格、换行、注释；合并表达式；变量名改成短名字
+
+因此，经过构建之后，预期中看到的代码是“面目全非的”。自然，产生报错的变量名、文件名，也是我们看不懂的。
+
+## Source Map 原理
+
+启用 Source Map 后调试变得「顺理成章」，正是因为 Source Map 将构建后的混淆代码 1:1 地还原成源码形式；而实现的原理，顾名思义，就是建立起「构建后的代码」与「源码（Source Code）」之间的映射（Mapping）关系。
+
+![https://cjwainwright.co.uk/webdev/sourcemaps/](/images/blogs/source-map/image-07.png)
+
+为了能更直观地解释 Source Map 的原理，我们使用真实的代码来逐步分析。
+
+### Source Map 如何建立映射关系
+
+首先，我们在 vite.config.ts 中，为生产环境开启 Source Map：
+
+```TypeScript
+export default defineConfig({
+  build: { sourcemap: true },
+});
+```
+
+**此处配置的疏忽，大概率是造成本次 App Store 前端\*\***源码\***\*泄漏的根因**
+
+运行 `npm run build`之后，我们能看到有两份 .js 文件；其中一份后缀名为 .map：
+
+![](/images/blogs/source-map/image-08.png)
+
+- index-CDLNfVvR.js：将在浏览器中运行的代码。除了处理过的 App.tsx 之外，还包含了处理过的 React 源码。
+
+![](/images/blogs/source-map/image-09.png)
+
+- index-CDLNfVvR.js.map：Source Map 文件，用于记录构建前后代码的映射关系
+
+![](/images/blogs/source-map/image-10.png)
+
+通过对比构建前后的代码，可以发现除了代码位置、所处文件发生了变化之外；函数名、变量名同样也被简化了：
+
+![](/images/blogs/source-map/image-11.png)
+
+为了能看到构建后代码的真实面目，我们就需要类似这样的一张映射表：
+
+![](/images/blogs/source-map/table-02.png)
+
+扮演这张映射表角色的文件，正是 .js.map 文件。
+
+### 如何理解 .js.map 文件
+
+.js.map 文件内容其实是一个 JSON 对象，包括以下字段：
+
+```JSON
+{
+    "version": 3,                                // Source Map 规范版本，目前都是 3
+    "file": "index-CDLNfVvR.js",                 // 生成的目标文件名（编译后的文件）
+    "sources": [                                 // 原始源文件路径列表
+        "../../src/App.tsx",
+        /*  其它源文件路径，如 React 源码相关文件  */
+    ],
+    "sourcesContent": [                          // 原始源文件的完整内容
+        "import { useState } from \"react\";\nimport reactLogo from \"./assets/react.svg\";\nimport viteLogo from \"/vite.svg\";\nimport \"./App.css\";\n\nfunction App() {\n  const [count, setCount] = useState(0);\n  console.log(count);\n  return (\n    <>\n      <div>\n        <a href=\"https://vite.dev\" target=\"_blank\">\n          <img src={viteLogo} className=\"logo\" alt=\"Vite logo\" />\n        </a>\n        <a href=\"https://react.dev\" target=\"_blank\">\n          <img src={reactLogo} className=\"logo react\" alt=\"React logo\" />\n        </a>\n      </div>\n      <h1>Vite + React</h1>\n      <div className=\"card\">\n        <button onClick={() => setCount((count) => count + 1)}>count is {count}</button>\n        <p>\n          Edit <code>src/App.tsx</code> and save to test HMR\n        </p>\n      </div>\n      <p className=\"read-the-docs\">Click on the Vite and React logos to learn more</p>\n    </>\n  );\n}\n\nexport default App;\n",
+        /*  其它源文件的完整内容，与 sources 数组顺序相对应  */
+    ],
+    "names": [                                   // 原始变量名/函数名列表
+        "App",
+        "count",
+        "setCount",
+        /*  其它原始token名  */
+    ],
+    "mappings": "kxBAWA,IAAIA,EAAqB,OAAO...",    // 核心字段：VLQ 编码的位置映射关系
+    "x_google_ignoreList": [                     // 建议调试器忽略的源文件索引
+        /*  通常是 node_modules 中的第三方库  */
+    ]
+}
+```
+
+其中，mappings 是最重要的字段；它用 Base64 变长（VLQ）压缩编码的方式来将编译后代码的每个位置映射回源代码。
+暂时无法在飞书文档外展示此内容
+
+搞明白 mappings 字段的实际含义，是彻底理解 Source Map 的核心。接下来，我们就重点来看看这串编码究竟是什么意思。
+
+## mappings
+
+由于从解码 mappings 字段作为理解 Source Map 原理的切入点会比较费劲，我们就逆转一下这个过程：
+
+1. 先用最简单直观的方式来表示映射关系，从根源上理解需要从哪些维度出发表示映射关系
+2. 随后我们逐步优化映射关系的表达方式，最终使用 .js.map 中正规的 Base64 VLQ 编码 方式来表示
+
+在我们接下来对于 mappings 的渐进式探索中，所提到的映射关系表示方法并非是 Source Map 的规范表达；而是通过一种不断优化的思想，来从最朴实无暇但有助于理解的表达方式，来一步步接近较难理解，但高度优化的 Source Map 正规映射表达方式。
+
+### 1. 映射最小单位
+
+Source Map 在建立代码映射关系时，并不会精确到构建前后代码的每个字符（这样做会使 Source Map 过度膨胀）；而是以代码中每个具有「语义意义」的 <u>**token**</u> 生成一个映射点。
+这里的 token 是编译器词法分析的产物，代表代码的最小语义单位；如：
+
+```TypeScript
+const count = 0;
+^^^^^             // token: 关键字 "const"
+      ^^^^^       // token: token "count"
+            ^     // token: 赋值运算符 "="
+              ^   // token: 数字字面量 "0"
+               ^  // token: 分号 ";"
+```
+
+下文我们统一将 Source Map 的映射点称为「token」。
+
+### 2. 理清构建前后的代码位置
+
+为了简单起见，我们就以源码中的 <u>**函数名（App）**</u>、<u>**状态（count）**</u>及其 <u>**Setter Function（setCount）**</u> 作为切入点，分析一下应该如何表示构建前后的 token 映射关系。
+首先，我们先整理出构建前后的 token 位置：
+
+![](/images/blogs/source-map/image-12.png)
+
+![](/images/blogs/source-map/table-03.png)
+
+![](/images/blogs/source-map/image-13.png)
+
+![](/images/blogs/source-map/table-04.png)
+
+代码编辑器显示的行列信息都是从 1 开始的。为了后续能够更好地记录代码位置，我们统一一下表示位置的方法，将 0 作为起始位置。
+由此，我们能初步整理出一张映射表：
+
+![](/images/blogs/source-map/table-05.png)
+
+### 3. 格式化地表达 token 位置关系
+
+为了能使构建前后的 token 位置关系更加简洁和一目了然，我们规范一下映射的格式：
+
+```Plain
+([原始代码中的位置]=>[生成代码中的位置])
+```
+
+根据前面整理出的映射关系，我们能得到一张新的映射表：
+
+![](/images/blogs/source-map/table-06.png)
+
+### 4. sourcesContent
+
+在进一步优化映射关系的表达之前，我们先来聊聊前文提到的 .js.map 文件中的 `sourcesContent` 这个字段。
+我们知道，Source Map 只是一个用于帮助我们更方便调试代码的工具；真正运行在浏览器中的仍是压缩后的代码，而非源码。要使 Devtools 知道压缩前的代码原样，就必须把源码原封不动地提供给 Devtools。
+于是，我们就把源码的全部内容放入 Source Map 的 `sourcesContent` 字段中：
+
+![](/images/blogs/source-map/image-14.png)
+
+`sourcesContent` 是一个数组。除了 App.tsx 的源码之外，还有 React 的源码。
+`sourcesContent` 数组每一个元素，是和 `sources` 数组中的元素一一对应的：
+
+!["../../src/App.tsx" 的数组下标为 12，与 sourcesContent 中下标为 12 的元素相对应](/images/blogs/source-map/image-15.png)
+
+![](/images/blogs/source-map/image-16.png)
+
+为了能在表示代码位置映射关系的基础上，同时声明代码所属的文件；我们优化一下映射关系的表示格式：
+
+```Plain
+([原始代码中的位置](文件路径下标)=>[生成代码中的位置])
+```
+
+![](/images/blogs/source-map/table-07.png)
+
+### 5. 使用相对位置来表示映射关系
+
+到目前为止，我们一直使用构建前后 token 的绝对行列位置来表示映射关系。
+使用绝对位置的好处是映射关系一目了然，但这对于数据的存储不友好；毕竟 Source Map 需要对代码中上万（甚至更多）token 的映射关系进行存储。
+为了优化存储空间利用率，我们尝试采用相对位置来表示不同 token 构建前后的映射关系。
+我们前文举例中的 App.tsx 文件是 `sources` 数组中的第 12 个元素。当表示相对位置时，数组中的第一个元素是锚点；为了更好地解释如何在锚点的基础上，表示后续元素的相对位置关系；我们就拿 `sources` 数组的 0 号元素文件 `react-jsx-runtime.production.js` 进行分析：
+
+![Ln 12, Col 1](/images/blogs/source-map/image-17.png)
+
+![Ln 1, Col 787](/images/blogs/source-map/image-18.png)
+
+该文件中首个 token 是 `var`。
+根据我们之前定义的格式，我们可以这样表达映射关系：
+
+```Plain
+([11,0](#0)=>[0,786])
+```
+
+对于第二个 token `REACT_ELEMENT_TYPE`，如果还是使用绝对位置来表示，是这样的：
+
+```Plain
+([11,4](#0)=>[0,790])
+```
+
+---
+
+在我们尝试用相对位置来表示之前，我们定义一个这样的元组格式：
+
+```Plain
+[generatedLine, generatedColumn, sourceIndex, originalLine, originalColumn]
+```
+
+- generatedLine: 生成代码的行下标
+- generatedColumn: 生成代码的列下标
+- sourceIndex: 文件路径下标
+- originalLine: 源代码的行下标
+- originalColumn: 源代码的列下标
+
+**为什么有两种不同的映射关系格式？**
+相对位置表示格式是官方定义的。前文绝对位置的表示方式可以理解成一种语法糖，是为了能让我们更好地理解映射关系而诞生的。
+
+由于 var 是源文件中的第一个 token，我们需要用其绝对位置作为后续使用相对位置表示的锚点。于是，我们就可以这样表示 `var` 的映射关系：
+
+```Plain
+@label: 相对位置表示
+
+[0,786,0,11,0]
+```
+
+```Plain
+@label: 【参考】绝对位置表示
+
+([11,0](#0)=>[0,786])
+```
+
+对于源文件中第二个 token`REACT_ELEMENT_TYPE`而言，我们用它与`var`之间的偏移量来表示其位置映射关系。
+在源文件中，`REACT_ELEMENT_TYPE`与 `var` 的起始位置有 4 个字符的距离
+
+![](/images/blogs/source-map/image-19.png)
+
+同样地，在压缩文件中，`REACT_ELEMENT_TYPE`与`var`的起始位置有 4 个字符的距离；尽管变量名被简化成了`D`。
+
+![](/images/blogs/source-map/image-20.png)
+
+因此，用相对位置来表示`REACT_ELEMENT_TYPE`映射关系的元组就是：
+
+```Plain
+@label: 相对位置表示
+
+[0,4,0,4,0]
+```
+
+```Plain
+@label: 【参考】绝对位置表示
+
+([11,4](#0)=>[0,790])
+```
+
+### 6. names
+
+像`REACT_ELEMENT_TYPE`这种较长的变量名，会在构建之后被简化。
+Source Map 为了能对变量名进行还原，就将这些简化前的 token 值存在了 `names` 数组中：
+
+![该数组有上千个元素，本图只截取了数组的一小部分](/images/blogs/source-map/image-21.png)
+
+同样地，我们也想将 token 在 `names` 数组中的下标也体现在映射关系中；于是就加一个 `nameIndex` 字段：
+
+```Plain
+[generatedLine, generatedColumn, sourceIndex, originalLine, originalColumn, nameIndex?]
+```
+
+这个字段是可选的，因为只有当 token 表示变量、函数的时候，构建阶段才会进行压缩。而对于 `var`、`const` 这种 token ，构建是不会对其造成影响的。记住，该字段也是基于前序元组中的 nameIndex 增量表示的。
+这样一来，我们就可以这样表示`REACT_ELEMENT_TYPE`的映射关系：
+
+```Plain
+[0,4,0,4,0,0]
+```
+
+### 7. 省略元组中对于生成代码行数的表示
+
+构建后的生成代码是高度压缩的。在我们的例子中，由源码构建出来的实际代码只有 9 行：
+
+![第 10 行的注释指向了 Source Map 文件，与实际代码内容无关](/images/blogs/source-map/image-09.png)
+
+如果我们在每个元组中，都包含生成代码的相对行下标（generatedLine）；会产生很多重复的行下标。因为我们是以生成代码文件为基准，去源文件中寻找映射的代码的；而生成代码文件的每一行，都会产生大量的映射数据：
+
+```Plain
+@label: 从实际的 Source Map 中解码出来的第一行映射元组
+
+[0,786,0,11,0], [0,4,0,0,4,0], [0,2,0,0,21], [0,7,0,0,7], [0,4,0,0,4], [0,28,0,0,28] ...
+```
+
+考虑到 Source Map 中的 mappings 字段其实是一个字符串，因此我们可以在元组中省略行下标：
+
+- 不同映射关系元组之间用逗号 `,` 进行分隔
+- 不同行之间用分号 `;` 进行分隔
+
+于是，我们就得到这样的 mappings：
+
+```Plain
+@label: 可以理解成一个二维数组
+
+[],[],[];[],[],[];[],[],[];[],[],[];[],[],[];[],[],[];[],[],[];[],[],[];[],[],[]
+```
+
+在省略了生成代码中的行数之后，第一行映射元组就变成了这样：
+
+```Plain
+[786,0,11,0], [4,0,0,4,0], [2,0,0,21], [7,0,0,7], [4,0,0,4], [28,0,0,28] ...
+```
+
+至此，我们已经将映射元组的表达式优化到的最精简的形态；这也是官方对于映射元组的定义：
+
+```Plain
+[generatedColumn, sourceIndex, originalLine, originalColumn, nameIndex?]
+```
+
+![https://tc39.es/ecma426/#sec-mappings](/images/blogs/source-map/image-22.png)
+
+由真实的 mappings 编码得出的映射元组，是这样的：
+
+![解码工具：https://www.murzwin.com/base64vlq.html](/images/blogs/source-map/image-23.png)
+
+### 8. 使用定长二进制表示映射关系
+
+现在我们已经推导出了映射元组的最终形态，我们就可以开始进行最终的优化操作：将映射元组用编码表示。
+
+**为什么我们不能直接在 mappings 中存十进制的元组呢？**
+浪费空间。元组除了包含映射关系的数字之外，还包括了逗号和括号。我们希望用一种更加紧凑的方式，去除元组内数字之间的分隔符；只保留元组之间的分隔符。
+这种理想的方式，就是以元组为单位进行编码；但在编码之前，需要先对数字进行进制的转换。
+
+以第一个元组 \[786,0,11,0\] 为例，我们先将其转化为 int16 的二进制表示：
+
+```Plain
+@label: 用 int16 二进制表示 [786,0,11,0]，总共需要 64 位
+
+[0000001100010010,0000000000000000,0000000000001011,0000000000000000]
+```
+
+考虑到我们在前一步已经用相对位置对于映射关系的表示关系进行了优化，大部分数值是用于表示偏移量的小数字；因此使用 int16 这种定长表示方法的效率很低；很多二进制位是用于补位的 0。
+尽管如此，仍有小部分数值需要较多的二进制位来表示；如 int8 无法表示十进制的 786。
+
+### 9. 使用变长二进制表示映射关系
+
+如果定长二进制表示十进制数的空间利用率低，那么使用变长二进制的方法来表示呢？
+
+```Plain
+@label: 用变长二进制表示 [786,0,11,0]，总共需要 16 位
+
+[1100010010,0,1011,0]
+```
+
+虽然看起来空间利用率提升了不少，但当我们将所有二进制的值拼接到一起，变成 `1100010010010110`，肯定是不合理的；因为这样我们无法区分元组中不同数字之间的间隔。
+
+### 10. 使用 Base64 VLQ 表示映射关系
+
+为了解决标志不同数字结束位，以及存储空间利用率的问题；我们采用一种规范化的变长编码方案——VLQ（Variable Length Quantity）。
+
+![https://en.wikipedia.org/wiki/Variable-length_quantity#Signed_numbers](/images/blogs/source-map/image-24.png)
+
+VLQ 有几个比较重要的规则：
+
+- 数字通过分组来表示，每组包含的二进制数是定长的；一个数值可以由一组及以上的二进制数表示
+- 对于表示的数值，其第一组二进制数的头尾位分别是继续位（Continuation Bit）和符号位（Signature Bit），中间的二进制位表示实际的数值；如果需要两组及以上二进制数才能表示的完，则除了第一组外其它二进制组的头位用于表示继续位，其余位数用于表示实际数值
+- VLQ 采用小端编码（little-endian）策略
+
+VLQ 有很多变体（Variant）。Source Map 则是对 VLQ 进一步采用了 Base64 编码，目的是使映射关系在 JSON 字符串中被安全地传输和存储。
+因此，我们指定 VLQ 每组中的二进制位数为 6 位；这样一组 VLQ 二进制数正好能被一个 Base64 编码表示。
+
+![https://juejin.cn/post/7098014484588920868](/images/blogs/source-map/image-25.webp)
+
+让我们以第一个元组中 786 这个数字为例，来试试如何用 Base64 VLQ 进行编码。
+
+#### 10.1. 使用二进制表示
+
+首先，我们将 786 这个十进制数字转换为二进制。
+由于用一组 6 位二进制数无法完整表示该数值，根据我们前文提到的 VLQ 分组策略进行分组。
+考虑到 VLQ 采用了小端编码的策略，编码后的值：
+
+- 高位：对应编码前低位的值
+- 低位：对应编码前高位的值
+
+由此，我们得到了三组数字：
+
+```Plain
+@label: 采用小端编码
+
+1100010010 -> [ 0010,  10001,   1 ]
+                 ^       ^      ^
+               第一组   第二组  第三组
+```
+
+#### 10.2. 对每组数字进行补位
+
+首先，对于第一组，我们的补位策略是：
+
+- 首位：由于后续还有更多分组，因此继续位是 1
+- 末位：由于表示的数字是个正数，因此符号位是 0
+
+对于第二组，我们可以用 5 位数字来表示实际的数值；最高的一位作为继续位。由于还有第三组，因此继续位为 1
+对于第三组，我们需要先在高位补 4 个 0；由于没有更多二级制组了，继续位的值为 0
+我们可以列一个表格表示；其中继续位为 C，符号位为 S，数值位为 D
+
+![](/images/blogs/source-map/table-08.png)
+
+#### 10.3. 对每组数字进行 Base64 编码
+
+根据 Base64 编码表，我们可以对三组数字进行编码：
+
+![](/images/blogs/source-map/table-09.png)
+
+就这样，我们成功地将 786 编码成了 `kxB`！
+类似地，我们可以将元组中其它数字也使用该规则进行编码：
+
+##### 对 0 进行 Base64 + VLQ 编码
+
+![](/images/blogs/source-map/table-10.png)
+
+##### 对 11 进行 Base64 + VLQ 编码
+
+![](/images/blogs/source-map/table-11.png)
+
+这样一来，我们就成功地将 \[786,0,11,0\] 这个元组编码成了`kxBAWA`！
+
+#### 10.4. 结论
+
+同样地，我们可以根据 Base64 + VLQ 对前文提到的几个 token 映射关系进行编码：
+
+![](/images/blogs/source-map/table-12.png)
+
+![](/images/blogs/source-map/image-26.png)
+![](/images/blogs/source-map/image-27.png)
+![](/images/blogs/source-map/image-28.png)
+
+对所有的映射关系进行如此编码，我们就能得到完整的 mappings：
+
+![](/images/blogs/source-map/image-29.png)
+
+至此，希望你理解了 Source Map 的实现原理 🎉！
+如果感兴趣的话，可以挑战一下将编码后的 mappings 解码成映射关系～
+
+## 更进一步：Inline Source Map
+
+在本地开发（npm run dev）过程中，Source Map 默认是启用的；因为这样能让我们快速定位报错位置。
+不过在 dev 环境中并不会为 Source Map 独立生成 .js.map 文件，而是以内联（inline）的形式附加在文件末尾：
+暂时无法在飞书文档外展示此内容
+Inline Source Map 本质上就是把整个 .js.map 文件进行了 Base64 编码。
+
+### 为什么 dev 环境使用 Inline Source Map 更优
+
+在开发环境下，我们追求：
+
+- 调试速度最快
+- 反馈最快
+- 不产生实际产物
+- HMR 需要最小化磁盘 I/O
+
+因此，使用 Inline Source Map 能保证把代码和 Source Map 内容都放在一个 HTTP Response 中，不额外写磁盘：
+
+```Plain
+@label: Inline Source Map
+
+index.js
+   ↓
+(代码)
+   ↓
+ //# sourceMappingURL=data:application/json;base64,xxx
+```
+
+这样做就不需要维护文件树，提升热更新的速度。
+相比之下，如果 Source Map 是外链的，例如：
+
+```Plain
+//# sourceMappingURL=index-CDLNfVvR.js.map
+```
+
+Vite dev server 必须在每次 transform 之后：
+
+1. 写入 map 文件
+2. 用文件 watcher 监听 map
+3. 让浏览器加载 map
+
+这样做的速度会明显比 inline 慢得多。
+
+---
+
+在开发过程中，我们每次保存文件：
+
+- 程序代码变了
+- sourcemap 也变了
+
+如果 sourcemap 是外部文件，浏览器需要反复请求更新。
+Inline sourcemap 则只需要加载一次更新后的 JS 文件，无需单独加载 map。
+这就让调试体验顺畅很多。
+
+### 为什么生产环境中不应该使用 Inline Source Map
+
+在生产环境中，考虑到需要保护源码，我们应该仅在必要的时候提供 Source Map。
+
+![在 js 文件末尾指向 Source Map 文件](/images/blogs/source-map/image-30.png)
+
+反过来想，如果我们在生产环境下使用内联的方式提供 Source Map 会导致：
+
+- 不灵活：Inline Source Map 必须写在 JS 文件内，无法单独提供。
+- 文件体积膨胀：在生产环境下我们需要尽可能地压缩文件体积，提升页面加载速度。如果把几 MB 的 Source Map 以内联的方式写入 JS 文件，会严重影响性能
+
+因此在开发环境中，我们通常以外链的方式独立提供 Source Map。类似于 Sentry 这类错误监控平台通常依赖的也是 .js.map 文件；使用 Inline Source Map 意味着要将完整的 JS 文件提供给平台，这是完全不必要的。
+
+## 参考
+
+### 关于 Apple Store 前端源码泄漏事件
+
+- 被下架的原仓库：https://github.com/rxliuli/apps.apple.com
+- 9to5mac 的报道：[Apple accidentally leaks new web App Store front-end source code, ends up on GitHub](https://9to5mac.com/2025/11/04/web-app-store-front-end-source-code-github/)
+- 「Reddit」rxliuli 本人 po 的帖子：[App Store web has exposed all its source code](https://www.reddit.com/r/webdev/comments/1onnzlj/app_store_web_has_exposed_all_its_source_code/)
+- 「Reddit」网友的复盘：[App Store web source was exposed > OP got mocked > Apple just sent a DMCA takedown](https://www.reddit.com/r/webdev/comments/1opu3g9/app_store_web_source_was_exposed_op_got_mocked/)
+
+### 官方解释
+
+- MDN 对 Source Map 的简要解释：https://developer.mozilla.org/en-US/docs/Glossary/Source\_map
+- ECMA-426 对 Source Map 的详细权威定义：https://tc39.es/ecma426/
+- VLQ 的维基百科词条：https://en.wikipedia.org/wiki/Variable-length\_quantity
+- Base64 编码的维基百科词条：https://en.wikipedia.org/wiki/Base64
+
+### Source Map 相关技术博客&视频
+
+- 「YouTube」Source Map 作用的解释视频：[Source Maps: The Unsung Hero of Modern Web Development](https://www.youtube.com/watch?v=9LKJ2pbrAlE)
+- 「YouTube」JSConf 上的 Source Map 讲座视频：[Ben Vinegar: Source maps through the looking glass | JSConf EU 2017](https://www.youtube.com/watch?v=NkVes0UMe9Y)
+- 「Blog」Source Map 中 Base64 VLQ 的编解码原理：[Decoding and Encoding Base64 VLQs in Source Maps](https://lucid.co/techblog/2019/08/22/decode-encoding-base64-vlqs-source-maps)
+- 「Blog」Source Map 技术剖析博客（图多，比较直观）：[Yet another explanation on sourcemap](https://medium.com/@trungutt/yet-another-explanation-on-sourcemap-669797e418ce)
+
+### 相关工具
+
+- Source Map 可视化工具：[Source Map Visualization](https://evanw.github.io/source-map-visualization/#MTA2MwAvLyBpbmRleC50c3gKaW1wb3J0IHsgaCBhcyB1LCBGcmFnbWVudCBhcyBsLCByZW5kZXIgYXMgYyB9IGZyb20gInByZWFjdCI7CgovLyBjb3VudGVyLnRzeAppbXBvcnQgeyBoIGFzIHQsIENvbXBvbmVudCBhcyBpIH0gZnJvbSAicHJlYWN0IjsKaW1wb3J0IHsgdXNlU3RhdGUgYXMgYSB9IGZyb20gInByZWFjdC9ob29rcyI7CnZhciBuID0gY2xhc3MgZXh0ZW5kcyBpIHsKICBjb25zdHJ1Y3RvcihlKSB7CiAgICBzdXBlcihlKTsKICAgIHRoaXMubiA9ICgpID0+IHRoaXMuc2V0U3RhdGUoeyB0OiB0aGlzLnN0YXRlLnQgKyAxIH0pOwogICAgdGhpcy5yID0gKCkgPT4gdGhpcy5zZXRTdGF0ZSh7IHQ6IHRoaXMuc3RhdGUudCAtIDEgfSk7CiAgICB0aGlzLnN0YXRlLnQgPSBlLmU7CiAgfQogIHJlbmRlcigpIHsKICAgIHJldHVybiB0KCJkaXYiLCB7CiAgICAgIGNsYXNzOiAiY291bnRlciIKICAgIH0sIHQoImgxIiwgbnVsbCwgdGhpcy5wcm9wcy5sYWJlbCksIHQoInAiLCBudWxsLCB0KCJidXR0b24iLCB7CiAgICAgIG9uQ2xpY2s6IHRoaXMucgogICAgfSwgIi0iKSwgIiAiLCB0aGlzLnN0YXRlLnQsICIgIiwgdCgiYnV0dG9uIiwgewogICAgICBvbkNsaWNrOiB0aGlzLm4KICAgIH0sICIrIikpKTsKICB9Cn0sIHMgPSAocikgPT4gewogIGxldCBbbywgZV0gPSBhKHIuZSk7CiAgcmV0dXJuIHQoImRpdiIsIHsKICAgIGNsYXNzOiAiY291bnRlciIKICB9LCB0KCJoMSIsIG51bGwsIHIubyksIHQoInAiLCBudWxsLCB0KCJidXR0b24iLCB7CiAgICBvbkNsaWNrOiAoKSA9PiBlKG8gLSAxKQogIH0sICItIiksICIgIiwgbywgIiAiLCB0KCJidXR0b24iLCB7CiAgICBvbkNsaWNrOiAoKSA9PiBlKG8gKyAxKQogIH0sICIrIikpKTsKfTsKCi8vIGluZGV4LnRzeApjKAogIHUobCwgbnVsbCwgdShuLCB7CiAgICBvOiAiQ291bnRlciAxIiwKICAgIGU6IDEwMAogIH0pLCB1KHMsIHsKICAgIG86ICJDb3VudGVyIDIiLAogICAgZTogMjAwCiAgfSkpLAogIGRvY3VtZW50LmdldEVsZW1lbnRCeUlkKCJyb290IikKKTsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9ZXhhbXBsZS5qcy5tYXAKMzAxOAB7CiAgInZlcnNpb24iOiAzLAogICJzb3VyY2VzIjogWyJpbmRleC50c3giLCAiY291bnRlci50c3giXSwKICAic291cmNlc0NvbnRlbnQiOiBbImltcG9ydCB7IGgsIEZyYWdtZW50LCByZW5kZXIgfSBmcm9tICdwcmVhY3QnXG5pbXBvcnQgeyBDb3VudGVyQ2xhc3MsIENvdW50ZXJGdW5jdGlvbiB9IGZyb20gJy4vY291bnRlcidcblxucmVuZGVyKFxuICA8PlxuICAgIDxDb3VudGVyQ2xhc3MgbGFiZWxfPVwiQ291bnRlciAxXCIgaW5pdGlhbFZhbHVlXz17MTAwfSAvPlxuICAgIDxDb3VudGVyRnVuY3Rpb24gbGFiZWxfPVwiQ291bnRlciAyXCIgaW5pdGlhbFZhbHVlXz17MjAwfSAvPlxuICA8Lz4sXG4gIGRvY3VtZW50LmdldEVsZW1lbnRCeUlkKCdyb290JykhLFxuKVxuIiwgImltcG9ydCB7IGgsIENvbXBvbmVudCB9IGZyb20gJ3ByZWFjdCdcbmltcG9ydCB7IHVzZVN0YXRlIH0gZnJvbSAncHJlYWN0L2hvb2tzJ1xuXG5pbnRlcmZhY2UgQ291bnRlclByb3BzIHtcbiAgbGFiZWxfOiBzdHJpbmdcbiAgaW5pdGlhbFZhbHVlXzogbnVtYmVyXG59XG5cbmludGVyZmFjZSBDb3VudGVyU3RhdGUge1xuICB2YWx1ZV86IG51bWJlclxufVxuXG5leHBvcnQgY2xhc3MgQ291bnRlckNsYXNzIGV4dGVuZHMgQ29tcG9uZW50PENvdW50ZXJQcm9wcywgQ291bnRlclN0YXRlPiB7XG4gIHN0YXRlOiBDb3VudGVyU3RhdGVcblxuICBjb25zdHJ1Y3Rvcihwcm9wczogQ291bnRlclByb3BzKSB7XG4gICAgc3VwZXIocHJvcHMpXG4gICAgdGhpcy5zdGF0ZS52YWx1ZV8gPSBwcm9wcy5pbml0aWFsVmFsdWVfXG4gIH1cblxuICBpbmNyZW1lbnRfID0gKCkgPT4gdGhpcy5zZXRTdGF0ZSh7IHZhbHVlXzogdGhpcy5zdGF0ZS52YWx1ZV8gKyAxIH0pXG4gIGRlY3JlbWVudF8gPSAoKSA9PiB0aGlzLnNldFN0YXRlKHsgdmFsdWVfOiB0aGlzLnN0YXRlLnZhbHVlXyAtIDEgfSlcblxuICByZW5kZXIoKSB7XG4gICAgcmV0dXJuIDxkaXYgY2xhc3M9XCJjb3VudGVyXCI+XG4gICAgICA8aDE+e3RoaXMucHJvcHMubGFiZWx9PC9oMT5cbiAgICAgIDxwPlxuICAgICAgICA8YnV0dG9uIG9uQ2xpY2s9e3RoaXMuZGVjcmVtZW50X30+LTwvYnV0dG9uPlxuICAgICAgICB7JyAnfVxuICAgICAgICB7dGhpcy5zdGF0ZS52YWx1ZV99XG4gICAgICAgIHsnICd9XG4gICAgICAgIDxidXR0b24gb25DbGljaz17dGhpcy5pbmNyZW1lbnRffT4rPC9idXR0b24+XG4gICAgICA8L3A+XG4gICAgPC9kaXY+XG4gIH1cbn1cblxuZXhwb3J0IGxldCBDb3VudGVyRnVuY3Rpb24gPSAocHJvcHM6IENvdW50ZXJQcm9wcykgPT4ge1xuICBsZXQgW3ZhbHVlLCBzZXRWYWx1ZV0gPSB1c2VTdGF0ZShwcm9wcy5pbml0aWFsVmFsdWVfKVxuICByZXR1cm4gPGRpdiBjbGFzcz1cImNvdW50ZXJcIj5cbiAgICA8aDE+e3Byb3BzLmxhYmVsX308L2gxPlxuICAgIDxwPlxuICAgICAgPGJ1dHRvbiBvbkNsaWNrPXsoKSA9PiBzZXRWYWx1ZSh2YWx1ZSAtIDEpfT4tPC9idXR0b24+XG4gICAgICB7JyAnfVxuICAgICAge3ZhbHVlfVxuICAgICAgeycgJ31cbiAgICAgIDxidXR0b24gb25DbGljaz17KCkgPT4gc2V0VmFsdWUodmFsdWUgKyAxKX0+KzwvYnV0dG9uPlxuICAgIDwvcD5cbiAgPC9kaXY+XG59XG4iXSwKICAibWFwcGluZ3MiOiAiO0FBQUEsU0FBUyxLQUFBQSxHQUFHLFlBQUFDLEdBQVUsVUFBQUMsU0FBYzs7O0FDQXBDLFNBQVMsS0FBQUMsR0FBRyxhQUFBQyxTQUFpQjtBQUM3QixTQUFTLFlBQUFDLFNBQWdCO0FBV2xCLElBQU1DLElBQU4sY0FBMkJGLEVBQXNDO0FBQUEsRUFHdEUsWUFBWUcsR0FBcUI7QUFDL0IsVUFBTUEsQ0FBSztBQUliLFNBQUFDLElBQWEsTUFBTSxLQUFLLFNBQVMsRUFBRUMsR0FBUSxLQUFLLE1BQU1BLElBQVMsRUFBRSxDQUFDO0FBQ2xFLFNBQUFDLElBQWEsTUFBTSxLQUFLLFNBQVMsRUFBRUQsR0FBUSxLQUFLLE1BQU1BLElBQVMsRUFBRSxDQUFDO0FBSmhFLFNBQUssTUFBTUEsSUFBU0YsRUFBTUk7QUFBQSxFQUM1QjtBQUFBLEVBS0EsU0FBUztBQUNQLFdBQU9SLEVBQUM7QUFBQSxNQUFJLE9BQU07QUFBQSxPQUNoQkEsRUFBQyxZQUFJLEtBQUssTUFBTSxLQUFNLEdBQ3RCQSxFQUFDLFdBQ0NBLEVBQUM7QUFBQSxNQUFPLFNBQVMsS0FBS087QUFBQSxPQUFZLEdBQUMsR0FDbEMsS0FDQSxLQUFLLE1BQU1ELEdBQ1gsS0FDRE4sRUFBQztBQUFBLE1BQU8sU0FBUyxLQUFLSztBQUFBLE9BQVksR0FBQyxDQUNyQyxDQUNGO0FBQUEsRUFDRjtBQUNGLEdBRVdJLElBQWtCLENBQUNMLE1BQXdCO0FBQ3BELE1BQUksQ0FBQ00sR0FBT0MsQ0FBUSxJQUFJVCxFQUFTRSxFQUFNSSxDQUFhO0FBQ3BELFNBQU9SLEVBQUM7QUFBQSxJQUFJLE9BQU07QUFBQSxLQUNoQkEsRUFBQyxZQUFJSSxFQUFNUSxDQUFPLEdBQ2xCWixFQUFDLFdBQ0NBLEVBQUM7QUFBQSxJQUFPLFNBQVMsTUFBTVcsRUFBU0QsSUFBUSxDQUFDO0FBQUEsS0FBRyxHQUFDLEdBQzVDLEtBQ0FBLEdBQ0EsS0FDRFYsRUFBQztBQUFBLElBQU8sU0FBUyxNQUFNVyxFQUFTRCxJQUFRLENBQUM7QUFBQSxLQUFHLEdBQUMsQ0FDL0MsQ0FDRjtBQUNGOzs7QUQ5Q0FHO0FBQUEsRUFDRUMsRUFBQUMsR0FBQSxNQUNFRCxFQUFDRSxHQUFBO0FBQUEsSUFBYUMsR0FBTztBQUFBLElBQVlDLEdBQWU7QUFBQSxHQUFLLEdBQ3JESixFQUFDSyxHQUFBO0FBQUEsSUFBZ0JGLEdBQU87QUFBQSxJQUFZQyxHQUFlO0FBQUEsR0FBSyxDQUMxRDtBQUFBLEVBQ0EsU0FBUyxlQUFlLE1BQU07QUFDaEM7IiwKICAibmFtZXMiOiBbImgiLCAiRnJhZ21lbnQiLCAicmVuZGVyIiwgImgiLCAiQ29tcG9uZW50IiwgInVzZVN0YXRlIiwgIkNvdW50ZXJDbGFzcyIsICJwcm9wcyIsICJpbmNyZW1lbnRfIiwgInZhbHVlXyIsICJkZWNyZW1lbnRfIiwgImluaXRpYWxWYWx1ZV8iLCAiQ291bnRlckZ1bmN0aW9uIiwgInZhbHVlIiwgInNldFZhbHVlIiwgImxhYmVsXyIsICJyZW5kZXIiLCAiaCIsICJGcmFnbWVudCIsICJDb3VudGVyQ2xhc3MiLCAibGFiZWxfIiwgImluaXRpYWxWYWx1ZV8iLCAiQ291bnRlckZ1bmN0aW9uIl0KfQo=)
+- Base64 VLQ 编/解码器：[BASE64 VLQ CODEC (COder/DECoder) AND SOURCEMAP V3 / ECMA-426 MAPPINGS PARSER](https://www.murzwin.com/base64vlq.html)
