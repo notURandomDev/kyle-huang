@@ -1,4 +1,5 @@
 import { MDXRemote, MDXRemoteProps } from "next-mdx-remote/rsc";
+import remarkGfm from "remark-gfm";
 import { slugify as transliterate } from "transliteration";
 import React, { ReactNode } from "react";
 
@@ -36,13 +37,8 @@ type CustomLinkProps = React.AnchorHTMLAttributes<HTMLAnchorElement> & {
 function CustomLink({ href, children, ...props }: CustomLinkProps) {
   const blacklist = ["youtube", "github"];
 
-  if (
-    href.includes("https://www.youtube.com") ||
-    href.includes("https://youtu.be")
-  ) {
-    return (
-      <Media caption={children} src={href} aspectRatio="16/9" radius="xl" />
-    );
+  if (href.includes("https://www.youtube.com") || href.includes("https://youtu.be")) {
+    return <Media caption={children} src={href} aspectRatio="16/9" radius="xl" />;
   }
 
   // if (
@@ -112,13 +108,7 @@ function createHeading(as: "h1" | "h2" | "h3" | "h4" | "h5" | "h6") {
   }: Omit<React.ComponentProps<typeof HeadingLink>, "as" | "id">) => {
     const slug = slugify(children as string);
     return (
-      <HeadingLink
-        marginTop="24"
-        marginBottom="12"
-        as={as}
-        id={slug}
-        {...props}
-      >
+      <HeadingLink marginTop="24" marginBottom="12" as={as} id={slug} {...props}>
         {children}
       </HeadingLink>
     );
@@ -149,11 +139,7 @@ function createInlineCode({ children }: { children: ReactNode }) {
 
 function createCodeBlock(props: any) {
   // For pre tags that contain code blocks
-  if (
-    props.children &&
-    props.children.props &&
-    props.children.props.className
-  ) {
+  if (props.children && props.children.props && props.children.props.className) {
     const { className, children } = props.children.props;
 
     // Extract language from className (format: language-xxx)
@@ -234,6 +220,151 @@ function createHR() {
   );
 }
 
+interface TableAlignment {
+  align?: "left" | "center" | "right";
+}
+
+interface CreateTableProps {
+  children: ReactNode;
+}
+
+function createTable({ children }: CreateTableProps) {
+  // Extract table data from children
+  const tableData = extractTableData(children);
+
+  if (!tableData) {
+    return null;
+  }
+
+  return (
+    <Table
+      data={{
+        headers: tableData.headers,
+        rows: tableData.rows,
+      }}
+    />
+  );
+}
+
+function extractTableData(children: ReactNode): {
+  headers: Array<{ content: ReactNode; key: string; align?: "left" | "center" | "right" }>;
+  rows: ReactNode[][];
+} | null {
+  try {
+    // Convert children to array and filter out whitespace
+    const childArray = React.Children.toArray(children).filter(
+      (child) => typeof child !== "string" || child.trim() !== ""
+    );
+
+    if (childArray.length === 0) {
+      return null;
+    }
+
+    // Look for table sections (thead, tbody) or direct tr elements
+    const rows: ReactNode[][] = [];
+    let headers: Array<{ content: ReactNode; key: string; align?: "left" | "center" | "right" }> =
+      [];
+    let alignments: ("left" | "center" | "right")[] = [];
+
+    // Helper function to extract cell content from different data structures
+    const extractCellContent = (cell: any): ReactNode => {
+      if (typeof cell === "string") return cell;
+      if (cell?.props?.children) return cell.props.children;
+      if (cell?.children) return cell.children;
+      return "";
+    };
+
+    // Helper function to process table rows
+    const processRow = (row: any, isHeader: boolean = false) => {
+      if (!row || !row.props?.children) return null;
+
+      const cells = React.Children.toArray(row.props.children).filter(
+        (cell: any) => cell?.type === "th" || cell?.type === "td"
+      );
+
+      if (cells.length === 0) return null;
+
+      const cellContents = cells.map((cell: any) => extractCellContent(cell));
+
+      // Check for alignment information in cell props
+      const cellAlignments = cells.map((cell: any) => {
+        const cellProps = cell?.props || {};
+
+        // Check for align attribute
+        if (cellProps.align) {
+          return cellProps.align as "left" | "center" | "right";
+        }
+
+        // Check for style.textAlign
+        if (cellProps.style?.textAlign) {
+          return cellProps.style.textAlign as "left" | "center" | "right";
+        }
+
+        // Default alignment
+        return "left" as const;
+      });
+
+      if (isHeader) {
+        headers = cellContents.map((content, i) => ({
+          content: content || "",
+          key: `header-${i}`,
+          align: cellAlignments[i],
+        }));
+        alignments = cellAlignments;
+      } else {
+        rows.push(cellContents.map((content) => content || ""));
+      }
+    };
+
+    // Process children looking for table structure
+    childArray.forEach((child) => {
+      if (React.isValidElement(child)) {
+        const element = child as any;
+
+        // Handle thead section
+        if (element.type === "thead" && element.props?.children) {
+          const theadChildren = React.Children.toArray(element.props.children);
+          theadChildren.forEach((theadChild) => {
+            if (React.isValidElement(theadChild) && (theadChild as any).type === "tr") {
+              processRow(theadChild, true); // Process as header row
+            }
+          });
+        }
+
+        // Handle tbody section
+        else if (element.type === "tbody" && element.props?.children) {
+          const tbodyChildren = React.Children.toArray(element.props.children);
+          tbodyChildren.forEach((tbodyChild) => {
+            if (React.isValidElement(tbodyChild) && (tbodyChild as any).type === "tr") {
+              processRow(tbodyChild, false); // Process as data row
+            }
+          });
+        }
+
+        // Handle direct tr elements (fallback)
+        else if (element.type === "tr") {
+          processRow(element, headers.length === 0); // First tr becomes header if no headers yet
+        }
+      }
+    });
+
+    // If no headers found but we have rows, infer headers from first row
+    if (headers.length === 0 && rows.length > 0) {
+      headers = rows[0].map((_, index) => ({
+        content: `Column ${index + 1}`,
+        key: `header-${index}`,
+        align: "left",
+      }));
+      rows.shift(); // Remove first row from data since it's used as header
+    }
+
+    return { headers, rows };
+  } catch (error) {
+    console.error("Error extracting table data:", error);
+    return null;
+  }
+}
+
 // function createQuote(props: any) {
 //   const quoteNode = props.children.find((el: any) => el !== "\n");
 
@@ -272,6 +403,7 @@ const components = {
   ul: createList as any,
   li: createListItem as any,
   hr: createHR as any,
+  table: createTable as any,
   Heading,
   Text,
   CodeBlock,
@@ -291,6 +423,12 @@ const components = {
   OgCard,
 };
 
+const options = {
+  mdxOptions: {
+    remarkPlugins: [remarkGfm],
+  },
+};
+
 type CustomMDXProps = MDXRemoteProps & {
   components?: typeof components;
 };
@@ -300,6 +438,7 @@ export function CustomMDX(props: CustomMDXProps) {
     <MDXRemote
       {...props}
       components={{ ...components, ...(props.components || {}) }}
+      options={options}
     />
   );
 }
