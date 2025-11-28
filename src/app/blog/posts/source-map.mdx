@@ -8,6 +8,7 @@ tag: "Source Map 原理解析"
 ## 背景
 
 近期，Apple 推出了 [App Store 的 Web 版本](https://apps.apple.com/us/iphone/today)。刚上线不久，就被一个开发者 [rxliuli](https://github.com/rxliuli) 发现网站的 Source Map 忘记关了。很快，TA 借助了 [Save All Resources](https://chromewebstore.google.com/detail/save-all-resources/abpdnfjocnmdomablahdcfnoggeeiedb) 这个插件下载了源码，把代码发布到了 [GitHub](https://github.com/rxliuli/apps.apple.com) 上，并在 Reddit 发了一个[帖子](https://www.reddit.com/r/webdev/comments/1onnzlj/app_store_web_has_exposed_all_its_source_code/)，没过多久就在网上火了。
+
 如此高调的举动，很难不引起 Apple 官方的注意。很快，GitHub 收到了 DMCA 下架请求，把这个仓库给移除了。
 
 ![](/images/blogs/source-map/image-01.png)
@@ -45,6 +46,7 @@ Source Map 是前端工程开发中非常强大的帮手。或许并非每个前
 ![浏览器 Devtools 中源代码预览视图](/images/blogs/source-map/image-04.png)
 
 至此，一切都显得理所当然。很多人肯定会觉得：源码中哪里出了问题，当然报错的信息也应该原封不动地将具体的 <u>**报错原因**</u>、产生报错的 <u>**代码文件**</u>、 <u>**行列位置**</u> 展示出来。
+
 殊不知，我们能如此顺理成章地定位报错，是因为 Source Map 为我们做了「Heavy Lifting」！在没有 Source Map 无声的帮助下，控制台中的报错是这样的：
 
 ![](/images/blogs/source-map/image-05.png)
@@ -64,7 +66,9 @@ Source Map 是前端工程开发中非常强大的帮手。或许并非每个前
 ### 为什么没有 Source Map，我们就看不懂报错代码了
 
 我们知道，一个在生产环境中运行的 Web 应用，依赖的是运行在浏览器中的 HTML、CSS、JS 资源。
+
 尽管浏览器中的 JS 代码运行起来的效果，与我们在本地写的 React 源码一致；但是代码本身还是有较大的区别。
+
 因为在部署一个前端应用之前，我们会对代码进行 <u>**构建**</u> 操作；这就包括了：
 
 - 转译（Transpiling）：TypeScript ➡️ JavaScript；JSX → JS 函数调用；语法降级
@@ -92,9 +96,7 @@ export default defineConfig({
 });
 ```
 
-**此处配置的疏忽，大概率是造成本次 App Store 前端\*\***源码\***\*泄漏的根因**
-
-运行 `npm run build`之后，我们能看到有两份 .js 文件；其中一份后缀名为 .map：
+运行 `npm run build` 之后，我们能看到有两份 .js 文件；其中一份后缀名为 .map：
 
 ![](/images/blogs/source-map/image-08.png)
 
@@ -146,7 +148,6 @@ export default defineConfig({
 ```
 
 其中，mappings 是最重要的字段；它用 Base64 变长（VLQ）压缩编码的方式来将编译后代码的每个位置映射回源代码。
-暂时无法在飞书文档外展示此内容
 
 搞明白 mappings 字段的实际含义，是彻底理解 Source Map 的核心。接下来，我们就重点来看看这串编码究竟是什么意思。
 
@@ -162,6 +163,7 @@ export default defineConfig({
 ### 1. 映射最小单位
 
 Source Map 在建立代码映射关系时，并不会精确到构建前后代码的每个字符（这样做会使 Source Map 过度膨胀）；而是以代码中每个具有「语义意义」的 <u>**token**</u> 生成一个映射点。
+
 这里的 token 是编译器词法分析的产物，代表代码的最小语义单位；如：
 
 ```TypeScript
@@ -178,17 +180,19 @@ const count = 0;
 ### 2. 理清构建前后的代码位置
 
 为了简单起见，我们就以源码中的 <u>**函数名（App）**</u>、<u>**状态（count）**</u>及其 <u>**Setter Function（setCount）**</u> 作为切入点，分析一下应该如何表示构建前后的 token 映射关系。
+
 首先，我们先整理出构建前后的 token 位置：
 
 ![](/images/blogs/source-map/image-12.png)
-
 ![](/images/blogs/source-map/table-03.png)
 
-![](/images/blogs/source-map/image-13.png)
+---
 
+![](/images/blogs/source-map/image-13.png)
 ![](/images/blogs/source-map/table-04.png)
 
 代码编辑器显示的行列信息都是从 1 开始的。为了后续能够更好地记录代码位置，我们统一一下表示位置的方法，将 0 作为起始位置。
+
 由此，我们能初步整理出一张映射表：
 
 ![](/images/blogs/source-map/table-05.png)
@@ -208,12 +212,15 @@ const count = 0;
 ### 4. sourcesContent
 
 在进一步优化映射关系的表达之前，我们先来聊聊前文提到的 .js.map 文件中的 `sourcesContent` 这个字段。
+
 我们知道，Source Map 只是一个用于帮助我们更方便调试代码的工具；真正运行在浏览器中的仍是压缩后的代码，而非源码。要使 Devtools 知道压缩前的代码原样，就必须把源码原封不动地提供给 Devtools。
+
 于是，我们就把源码的全部内容放入 Source Map 的 `sourcesContent` 字段中：
 
 ![](/images/blogs/source-map/image-14.png)
 
 `sourcesContent` 是一个数组。除了 App.tsx 的源码之外，还有 React 的源码。
+
 `sourcesContent` 数组每一个元素，是和 `sources` 数组中的元素一一对应的：
 
 !["../../src/App.tsx" 的数组下标为 12，与 sourcesContent 中下标为 12 的元素相对应](/images/blogs/source-map/image-15.png)
@@ -231,8 +238,11 @@ const count = 0;
 ### 5. 使用相对位置来表示映射关系
 
 到目前为止，我们一直使用构建前后 token 的绝对行列位置来表示映射关系。
+
 使用绝对位置的好处是映射关系一目了然，但这对于数据的存储不友好；毕竟 Source Map 需要对代码中上万（甚至更多）token 的映射关系进行存储。
+
 为了优化存储空间利用率，我们尝试采用相对位置来表示不同 token 构建前后的映射关系。
+
 我们前文举例中的 App.tsx 文件是 `sources` 数组中的第 12 个元素。当表示相对位置时，数组中的第一个元素是锚点；为了更好地解释如何在锚点的基础上，表示后续元素的相对位置关系；我们就拿 `sources` 数组的 0 号元素文件 `react-jsx-runtime.production.js` 进行分析：
 
 ![Ln 12, Col 1](/images/blogs/source-map/image-17.png)
@@ -240,6 +250,7 @@ const count = 0;
 ![Ln 1, Col 787](/images/blogs/source-map/image-18.png)
 
 该文件中首个 token 是 `var`。
+
 根据我们之前定义的格式，我们可以这样表达映射关系：
 
 ```Plain
@@ -266,8 +277,14 @@ const count = 0;
 - originalLine: 源代码的行下标
 - originalColumn: 源代码的列下标
 
-**为什么有两种不同的映射关系格式？**
-相对位置表示格式是官方定义的。前文绝对位置的表示方式可以理解成一种语法糖，是为了能让我们更好地理解映射关系而诞生的。
+<br />
+
+<Feedback
+  title="为什么有两种不同的映射关系格式？"
+  description="相对位置表示格式是官方定义的。前文绝对位置的表示方式可以理解成一种语法糖，是为了能让我们更好地理解映射关系而诞生的。"
+/>
+
+<br />
 
 由于 var 是源文件中的第一个 token，我们需要用其绝对位置作为后续使用相对位置表示的锚点。于是，我们就可以这样表示 `var` 的映射关系：
 
@@ -284,6 +301,7 @@ const count = 0;
 ```
 
 对于源文件中第二个 token`REACT_ELEMENT_TYPE`而言，我们用它与`var`之间的偏移量来表示其位置映射关系。
+
 在源文件中，`REACT_ELEMENT_TYPE`与 `var` 的起始位置有 4 个字符的距离
 
 ![](/images/blogs/source-map/image-19.png)
@@ -297,7 +315,7 @@ const count = 0;
 ```Plain
 @label: 相对位置表示
 
-[0,4,0,4,0]
+[0,4,0,0,4]
 ```
 
 ```Plain
@@ -308,7 +326,8 @@ const count = 0;
 
 ### 6. names
 
-像`REACT_ELEMENT_TYPE`这种较长的变量名，会在构建之后被简化。
+像 `REACT_ELEMENT_TYPE` 这种较长的变量名，会在构建之后被简化。
+
 Source Map 为了能对变量名进行还原，就将这些简化前的 token 值存在了 `names` 数组中：
 
 ![该数组有上千个元素，本图只截取了数组的一小部分](/images/blogs/source-map/image-21.png)
@@ -320,7 +339,8 @@ Source Map 为了能对变量名进行还原，就将这些简化前的 token �
 ```
 
 这个字段是可选的，因为只有当 token 表示变量、函数的时候，构建阶段才会进行压缩。而对于 `var`、`const` 这种 token ，构建是不会对其造成影响的。记住，该字段也是基于前序元组中的 nameIndex 增量表示的。
-这样一来，我们就可以这样表示`REACT_ELEMENT_TYPE`的映射关系：
+
+这样一来，我们就可以这样表示 `REACT_ELEMENT_TYPE` 的映射关系：
 
 ```Plain
 [0,4,0,4,0,0]
@@ -375,9 +395,14 @@ Source Map 为了能对变量名进行还原，就将这些简化前的 token �
 
 现在我们已经推导出了映射元组的最终形态，我们就可以开始进行最终的优化操作：将映射元组用编码表示。
 
-**为什么我们不能直接在 mappings 中存十进制的元组呢？**
-浪费空间。元组除了包含映射关系的数字之外，还包括了逗号和括号。我们希望用一种更加紧凑的方式，去除元组内数字之间的分隔符；只保留元组之间的分隔符。
-这种理想的方式，就是以元组为单位进行编码；但在编码之前，需要先对数字进行进制的转换。
+<br />
+
+<Feedback
+  title="为什么我们不能直接在 mappings 中存十进制的元组呢？"
+  description="浪费空间。元组除了包含映射关系的数字之外，还包括了逗号和括号。我们希望用一种更加紧凑的方式，去除元组内数字之间的分隔符；只保留元组之间的分隔符。这种理想的方式，就是以元组为单位进行编码；但在编码之前，需要先对数字进行进制的转换。"
+/>
+
+<br />
 
 以第一个元组 \[786,0,11,0\] 为例，我们先将其转化为 int16 的二进制表示：
 
@@ -388,6 +413,7 @@ Source Map 为了能对变量名进行还原，就将这些简化前的 token �
 ```
 
 考虑到我们在前一步已经用相对位置对于映射关系的表示关系进行了优化，大部分数值是用于表示偏移量的小数字；因此使用 int16 这种定长表示方法的效率很低；很多二进制位是用于补位的 0。
+
 尽管如此，仍有小部分数值需要较多的二进制位来表示；如 int8 无法表示十进制的 786。
 
 ### 9. 使用变长二进制表示映射关系
@@ -415,6 +441,7 @@ VLQ 有几个比较重要的规则：
 - VLQ 采用小端编码（little-endian）策略
 
 VLQ 有很多变体（Variant）。Source Map 则是对 VLQ 进一步采用了 Base64 编码，目的是使映射关系在 JSON 字符串中被安全地传输和存储。
+
 因此，我们指定 VLQ 每组中的二进制位数为 6 位；这样一组 VLQ 二进制数正好能被一个 Base64 编码表示。
 
 ![https://juejin.cn/post/7098014484588920868](/images/blogs/source-map/image-25.webp)
@@ -424,7 +451,9 @@ VLQ 有很多变体（Variant）。Source Map 则是对 VLQ 进一步采用了 B
 #### 10.1. 使用二进制表示
 
 首先，我们将 786 这个十进制数字转换为二进制。
+
 由于用一组 6 位二进制数无法完整表示该数值，根据我们前文提到的 VLQ 分组策略进行分组。
+
 考虑到 VLQ 采用了小端编码的策略，编码后的值：
 
 - 高位：对应编码前低位的值
@@ -448,7 +477,9 @@ VLQ 有很多变体（Variant）。Source Map 则是对 VLQ 进一步采用了 B
 - 末位：由于表示的数字是个正数，因此符号位是 0
 
 对于第二组，我们可以用 5 位数字来表示实际的数值；最高的一位作为继续位。由于还有第三组，因此继续位为 1
+
 对于第三组，我们需要先在高位补 4 个 0；由于没有更多二级制组了，继续位的值为 0
+
 我们可以列一个表格表示；其中继续位为 C，符号位为 S，数值位为 D
 
 ![](/images/blogs/source-map/table-08.png)
@@ -460,6 +491,7 @@ VLQ 有很多变体（Variant）。Source Map 则是对 VLQ 进一步采用了 B
 ![](/images/blogs/source-map/table-09.png)
 
 就这样，我们成功地将 786 编码成了 `kxB`！
+
 类似地，我们可以将元组中其它数字也使用该规则进行编码：
 
 ##### 对 0 进行 Base64 + VLQ 编码
@@ -487,13 +519,17 @@ VLQ 有很多变体（Variant）。Source Map 则是对 VLQ 进一步采用了 B
 ![](/images/blogs/source-map/image-29.png)
 
 至此，希望你理解了 Source Map 的实现原理 🎉！
+
 如果感兴趣的话，可以挑战一下将编码后的 mappings 解码成映射关系～
 
 ## 更进一步：Inline Source Map
 
 在本地开发（npm run dev）过程中，Source Map 默认是启用的；因为这样能让我们快速定位报错位置。
+
 不过在 dev 环境中并不会为 Source Map 独立生成 .js.map 文件，而是以内联（inline）的形式附加在文件末尾：
-暂时无法在飞书文档外展示此内容
+
+![](/images/blogs/source-map/image-30.png)
+
 Inline Source Map 本质上就是把整个 .js.map 文件进行了 Base64 编码。
 
 ### 为什么 dev 环境使用 Inline Source Map 更优
@@ -518,6 +554,7 @@ index.js
 ```
 
 这样做就不需要维护文件树，提升热更新的速度。
+
 相比之下，如果 Source Map 是外链的，例如：
 
 ```Plain
@@ -540,14 +577,16 @@ Vite dev server 必须在每次 transform 之后：
 - sourcemap 也变了
 
 如果 sourcemap 是外部文件，浏览器需要反复请求更新。
+
 Inline sourcemap 则只需要加载一次更新后的 JS 文件，无需单独加载 map。
+
 这就让调试体验顺畅很多。
 
 ### 为什么生产环境中不应该使用 Inline Source Map
 
 在生产环境中，考虑到需要保护源码，我们应该仅在必要的时候提供 Source Map。
 
-![在 js 文件末尾指向 Source Map 文件](/images/blogs/source-map/image-30.png)
+![在 js 文件末尾指向 Source Map 文件](/images/blogs/source-map/image-31.png)
 
 反过来想，如果我们在生产环境下使用内联的方式提供 Source Map 会导致：
 
