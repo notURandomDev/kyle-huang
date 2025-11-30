@@ -1,5 +1,5 @@
 import { About, Blog, Gallery, Home, Newsletter, Person, Social, Work } from "@/types";
-import { Line, Row, Text } from "@once-ui-system/core";
+import { Line, Logo, Row, SmartLink, Text } from "@once-ui-system/core";
 
 const person: Person = {
   firstName: "Kyle",
@@ -8,6 +8,7 @@ const person: Person = {
   role: "全栈工程师",
   avatar: "/images/avatar.png",
   email: "1250901577@qq.com",
+  base: "Beijing, China",
   location: "Asia/Shanghai", // Expecting the IANA time zone identifier, e.g., 'Europe/Vienna'
   languages: [], // optional: Leave the array empty if you don't want to display languages
 };
@@ -46,14 +47,14 @@ const home: Home = {
     display: true,
     title: (
       <Row gap="12" vertical="center">
-        <strong className="ml-4">once-ui：首次参与开源项目</strong>{" "}
+        <strong className="ml-4">Sourcemap原理剖析</strong>{" "}
         <Line background="brand-alpha-strong" vert height="20" />
         <Text marginRight="4" onBackground="brand-medium">
           精选博客
         </Text>
       </Row>
     ),
-    href: "/blog/once-ui-getting-involved",
+    href: "/blog/source-map",
   },
   subline: <>Hi～ 我是一个热衷于用代码解决实际问题的前端工程师 💻</>,
 };
@@ -79,10 +80,8 @@ const about: About = {
     title: "个人介绍",
     description: (
       <>
-        👋 Hi～ 我是一个具有全栈开发能力的工程师 ⌨️
-        <br /> <br />
-        我做过和构建系统相关的系统架构 、提升研发效率相关的DevOps工作；写过后端API服务。
-        尽管如此，我还是对前端开发情有独钟 💘
+        👋 Hi～ 我是一个具有全栈开发能力的工程师，主要工作是前端开发 ⌨️
+        。同时，我也做过构建优化、研发效率相关的架构工作；写过服务端API。
         <br /> <br />
         React.js 是我的核心技术栈，BaaS 是我独立开发的好帮手
         👬；在设计产品时，我习惯从用户角度出发，探索最佳的交互模式。
@@ -90,7 +89,7 @@ const about: About = {
         我有丰富的项目经验 👨‍💻，做过 Web、RN跨平台、微信小程序，以及 iOS 和 Android
         的原生开发；Project-Based Learning 是我最喜欢的学习方式！
         <br /> <br />
-        近期，我积极参与开源社区的项目，努力从开源文化的消费者转变为贡献者 💪
+        业余时间，我喜欢参与有意思的开源项目，为 Open-Sourcing 做出自己的贡献 💪
       </>
     ),
   },
@@ -117,18 +116,30 @@ const about: About = {
     experiences: [
       {
         company: "飞书｜字节跳动",
-        timeframe: "2025/07 - 至今",
-        role: "客户端开发 - 架构小组",
+        timeframe: "2025/11 - 至今",
+        role: "前端开发 - 企业知识问答",
+        achievements: [<>AI 应用开发</>],
+        images: [
+          // optional: leave the array empty if you don't want to display images
+          {
+            src: "/images/work/lark/logo-02.png",
+            alt: "Knowledge AI Logo",
+            width: 16,
+            height: 9,
+          },
+        ],
+      },
+      {
+        company: "飞书｜字节跳动",
+        timeframe: "2025/07 - 2025/10",
+        role: "客户端开发 - Infra",
         achievements: [
           <>
-            RustSDK Bazel 改造：将 PB 生成流程从 Cargo 迁至 Bazel，实现产物缓存；pb 增量构建提速
-            61.7%，二次构建缓存提速 94.9%。
+            ✨ RustSDK 集成 Bazel 构建：将 PB 生成流程从 Cargo 迁至
+            Bazel，实现产物多级缓存；增量构建提速 61.7%，二次构建缓存提速 94.9%
           </>,
-          <>
-            Monorepo 迁移：主导 Android 端 CI 迁移，开发路径重定向插件降低适配成本；完成 80% 的 47
-            个任务并清理无用任务。
-          </>,
-          <>iOS 客户端构建优化：通过移除冗余 public import，优化 16 个模块，提升整体构建速度</>,
+          <>Monorepo 迁移：通过插件开发与脚本适配，完成了 47 个 Android 端 CI 任务迁移</>,
+          <>iOS 构建优化：对 16 个模块进行 internal import 优化，提升构建速度</>,
         ],
         images: [
           // optional: leave the array empty if you don't want to display images
@@ -152,11 +163,11 @@ const about: About = {
           <>熟悉 HTML、CSS、JavaScript、TypeScript；熟悉 React 框架、UI组件库应用及开发</>
         ),
         tags: [
+          { name: "React", icon: "react" },
+          { name: "TypeScript", icon: "typescript" },
           { name: "HTML", icon: "html" },
           { name: "CSS", icon: "css" },
           { name: "JavaScript", icon: "javascript" },
-          { name: "TypeScript", icon: "typescript" },
-          { name: "React", icon: "react" },
         ],
         // optional: leave the array empty if you don't want to display images
         images: [],
@@ -168,9 +179,9 @@ const about: About = {
         ),
         tags: [
           { name: "React Native", icon: "reactNative" },
-          { name: "Android Studio", icon: "androidStudio" },
-          { name: "Xcode", icon: "xcode" },
           { name: "Swift", icon: "swift" },
+          { name: "Xcode", icon: "xcode" },
+          { name: "Android Studio", icon: "androidStudio" },
         ],
         // optional: leave the array empty if you don't want to display images
         images: [],
@@ -181,9 +192,9 @@ const about: About = {
           <>有使用 云开发平台/BaaS 协助全栈开发的能力；了解常规的 Node.js 后端项目开发</>
         ),
         tags: [
-          { name: "appwrite", icon: "appwrite" },
           { name: "Node.js", icon: "nodejs" },
           { name: "Express.js", icon: "expressjs" },
+          { name: "appwrite", icon: "appwrite" },
         ],
         // optional: leave the array empty if you don't want to display images
         images: [],
@@ -196,6 +207,7 @@ const about: About = {
           { name: "GitHub", icon: "github" },
           { name: "GitLab", icon: "gitlab" },
           { name: "Vercel", icon: "vercel" },
+          { name: "Sentry", icon: "sentry" },
         ],
         // optional: leave the array empty if you don't want to display images
         images: [],

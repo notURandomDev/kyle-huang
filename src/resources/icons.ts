@@ -39,6 +39,7 @@ import {
   SiAppwrite,
   SiNodedotjs,
   SiExpress,
+  SiSentry,
 } from "react-icons/si";
 
 import {
@@ -101,10 +102,7 @@ export const iconLibrary: Record<string, IconType> = {
   whatsapp: FaWhatsapp,
   reddit: FaReddit,
   telegram: FaTelegram,
-  instagram: FaInstagram,
-  git: SiGit,
-  androidStudio: SiAndroidstudio,
-  xcode: SiXcode,
+  sentry: SiSentry,
 };
 
 export type IconLibrary = typeof iconLibrary;
