@@ -1,11 +1,11 @@
 import { About, Blog, Gallery, Home, Newsletter, Person, Social, Work } from "@/types";
-import { Line, Logo, Row, SmartLink, Text } from "@once-ui-system/core";
+import { Line, Row, Text } from "@once-ui-system/core";
 
 const person: Person = {
   firstName: "Kyle",
   lastName: "Huang",
   name: `Kyle Huang`,
-  role: "全栈工程师",
+  role: "前端工程师",
   avatar: "/images/avatar.png",
   email: "1250901577@qq.com",
   base: "Beijing, China",
@@ -38,10 +38,10 @@ const social: Social = [
 
 const home: Home = {
   path: "/",
-  image: "/images/og/home.jpg",
+  image: "/images/og/home.png",
   label: "Home",
   title: `${person.name}`,
-  description: `Portfolio website showcasing my work as a ${person.role}`,
+  description: `${person.role} - ${person.name} 的个人网站`,
   headline: <>Kyle Huang</>,
   featured: {
     display: true,
@@ -56,14 +56,14 @@ const home: Home = {
     ),
     href: "/blog/source-map",
   },
-  subline: <>Hi～ 我是一个热衷于用代码解决实际问题的前端工程师 💻</>,
+  subline: <>专注前端工程，具备全栈视角与实践能力</>,
 };
 
 const about: About = {
   path: "/resume",
   label: "简历",
   title: `${person.name} - 简历`,
-  description: `Meet ${person.name}, ${person.role} from ${person.location}`,
+  description: `Hi~ 我是 ${person.name}, base 北京的${person.role}`,
   tableOfContent: {
     display: true,
     subItems: false,
@@ -80,8 +80,8 @@ const about: About = {
     title: "个人介绍",
     description: (
       <>
-        👋 Hi～ 我是一个具有全栈开发能力的工程师，主要工作是前端开发 ⌨️
-        。同时，我也做过构建优化、研发效率相关的架构工作；写过服务端API。
+        👋 Hi～ 我是一个具有全栈开发能力的前端工程师；
+        同时也做过构建优化、研发效率相关的架构工作，写过服务端 API Service。
         <br /> <br />
         React.js 是我的核心技术栈，BaaS 是我独立开发的好帮手
         👬；在设计产品时，我习惯从用户角度出发，探索最佳的交互模式。
@@ -232,7 +232,7 @@ const blog: Blog = {
   path: "/blog",
   label: "技术博客",
   title: "在项目中积累开发经验",
-  description: `Read what ${person.name} has been up to recently`,
+  description: "沉淀技术时写的一些博客",
   // Create new blog posts by adding a new .mdx file to app/blog/posts
   // All posts will be listed on the /blog route
 };
@@ -241,7 +241,8 @@ const work: Work = {
   path: "/project",
   label: "项目经历",
   title: "项目经历",
-  description: `Design and dev projects by ${person.name}`,
+  // description: `Design and dev projects by ${person.name}`,
+  description: "我做过的项目精选集",
   // Create new project pages by adding a new .mdx file to app/blog/posts
   // All projects will be listed on the /home and /work routes
 };
