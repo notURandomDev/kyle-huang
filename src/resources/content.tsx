@@ -1,11 +1,20 @@
-import { About, Blog, Gallery, Home, Newsletter, Person, Social, Work } from "@/types";
-import { Line, Logo, Row, SmartLink, Text } from "@once-ui-system/core";
+import {
+  About,
+  Blog,
+  Gallery,
+  Home,
+  Newsletter,
+  Person,
+  Social,
+  Work,
+} from "@/types";
+import { Line, Row, Text } from "@once-ui-system/core";
 
 const person: Person = {
   firstName: "Kyle",
   lastName: "Huang",
   name: `Kyle Huang`,
-  role: "全栈工程师",
+  role: "前端工程师",
   avatar: "/images/avatar.png",
   email: "1250901577@qq.com",
   base: "Beijing, China",
@@ -36,10 +45,10 @@ const social: Social = [
 
 const home: Home = {
   path: "/",
-  image: "/images/og/home.jpg",
+  image: "/images/og/home.png",
   label: "Home",
   title: `${person.name}`,
-  description: `Portfolio website showcasing my work as a ${person.role}`,
+  description: `${person.role} - ${person.name} 的个人网站`,
   headline: <>Kyle Huang</>,
   featured: {
     display: true,
@@ -54,17 +63,14 @@ const home: Home = {
     ),
     href: "/blog/source-map",
   },
-  subline: (
-    // <>“代码是用来让人读的，只是顺便让机器执行而已”</>
-    <>Hi～ 我是一个热衷于用代码解决实际问题的全栈工程师 💻</>
-  ),
+  subline: <>专注前端工程，具备全栈视角与实践能力</>,
 };
 
 const about: About = {
   path: "/resume",
   label: "简历",
   title: `${person.name} - 简历`,
-  description: `Meet ${person.name}, ${person.role} from ${person.location}`,
+  description: `Hi~ 我是 ${person.name}, base 北京的${person.role}`,
   tableOfContent: {
     display: true,
     subItems: false,
@@ -81,14 +87,14 @@ const about: About = {
     title: "个人介绍",
     description: (
       <>
-        👋 Hi～ 我是一个具有全栈开发能力的工程师，主要工作是前端开发 ⌨️
-        。同时，我也做过构建优化、研发效率相关的架构工作；写过服务端API。
+        👋 Hi～ 我是一个具有全栈开发能力的前端工程师；
+        同时也做过构建优化、研发效率相关的架构工作，写过服务端 API Service。
         <br /> <br />
         React.js 是我的核心技术栈，BaaS 是我独立开发的好帮手
         👬；在设计产品时，我习惯从用户角度出发，探索最佳的交互模式。
         <br /> <br />
-        我有丰富的项目经验 👨‍💻，做过 Web、RN跨平台、微信小程序，以及 iOS 和 Android
-        的原生开发；Project-Based Learning 是我最喜欢的学习方式！
+        我有丰富的项目经验 👨‍💻，做过 Web、RN跨平台、微信小程序，以及 iOS 和
+        Android 的原生开发；Project-Based Learning 是我最喜欢的学习方式！
         <br /> <br />
         业余时间，我喜欢参与有意思的开源项目，为 Open-Sourcing 做出自己的贡献 💪
       </>
@@ -139,8 +145,13 @@ const about: About = {
             ✨ RustSDK 集成 Bazel 构建：将 PB 生成流程从 Cargo 迁至
             Bazel，实现产物多级缓存；增量构建提速 61.7%，二次构建缓存提速 94.9%
           </>,
-          <>Monorepo 迁移：通过插件开发与脚本适配，完成了 47 个 Android 端 CI 任务迁移</>,
-          <>iOS 构建优化：对 16 个模块进行 internal import 优化，提升构建速度</>,
+          <>
+            Monorepo 迁移：通过插件开发与脚本适配，完成了 47 个 Android 端 CI
+            任务迁移
+          </>,
+          <>
+            iOS 构建优化：对 16 个模块进行 internal import 优化，提升构建速度
+          </>,
         ],
         images: [
           // optional: leave the array empty if you don't want to display images
@@ -161,7 +172,10 @@ const about: About = {
       {
         title: "Web前端开发",
         description: (
-          <>熟悉 HTML、CSS、JavaScript、TypeScript；熟悉 React 框架、UI组件库应用及开发</>
+          <>
+            熟悉 HTML、CSS、JavaScript、TypeScript；熟悉 React
+            框架、UI组件库应用及开发
+          </>
         ),
         tags: [
           { name: "React", icon: "react" },
@@ -176,7 +190,10 @@ const about: About = {
       {
         title: "跨平台开发",
         description: (
-          <>熟悉 React Native 跨平台开发、微信小程序开发；有 Android、iOS 客户端开发经验</>
+          <>
+            熟悉 React Native 跨平台开发、微信小程序开发；有 Android、iOS
+            客户端开发经验
+          </>
         ),
         tags: [
           { name: "React Native", icon: "reactNative" },
@@ -190,7 +207,10 @@ const about: About = {
       {
         title: "全栈开发",
         description: (
-          <>有使用 云开发平台/BaaS 协助全栈开发的能力；了解常规的 Node.js 后端项目开发</>
+          <>
+            有使用 云开发平台/BaaS 协助全栈开发的能力；了解常规的 Node.js
+            后端项目开发
+          </>
         ),
         tags: [
           { name: "Node.js", icon: "nodejs" },
@@ -202,7 +222,11 @@ const about: About = {
       },
       {
         title: "DevOps",
-        description: <>熟悉Git；有GitHub/GitLab的DevOps相关经验，以及Web项目的部署全流程经验</>,
+        description: (
+          <>
+            熟悉Git；有GitHub/GitLab的DevOps相关经验，以及Web项目的部署全流程经验
+          </>
+        ),
         tags: [
           { name: "Git", icon: "git" },
           { name: "GitHub", icon: "github" },
@@ -215,7 +239,11 @@ const about: About = {
       },
       {
         title: "设计能力",
-        description: <>熟悉UI、UX设计，有Figma使用经验，艺术审美较高；善于将想法转化为产品</>,
+        description: (
+          <>
+            熟悉UI、UX设计，有Figma使用经验，艺术审美较高；善于将想法转化为产品
+          </>
+        ),
         tags: [
           {
             name: "Figma",
@@ -233,7 +261,7 @@ const blog: Blog = {
   path: "/blog",
   label: "技术博客",
   title: "在项目中积累开发经验",
-  description: `Read what ${person.name} has been up to recently`,
+  description: "沉淀技术时写的一些博客",
   // Create new blog posts by adding a new .mdx file to app/blog/posts
   // All posts will be listed on the /blog route
 };
@@ -242,7 +270,8 @@ const work: Work = {
   path: "/project",
   label: "项目经历",
   title: "项目经历",
-  description: `Design and dev projects by ${person.name}`,
+  // description: `Design and dev projects by ${person.name}`,
+  description: "我做过的项目精选集",
   // Create new project pages by adding a new .mdx file to app/blog/posts
   // All projects will be listed on the /home and /work routes
 };
