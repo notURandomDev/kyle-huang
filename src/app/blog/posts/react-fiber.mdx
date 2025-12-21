@@ -3,6 +3,7 @@ title: "React Fiber"
 publishedAt: "2025-03-15"
 tag: "React Deep Dive"
 image: "/images/blogs/react-deep-dive-cover.jpg"
+summary: "简单介绍 React Fiber 的核心概念"
 ---
 
 [What Is React Fiber? React.js Deep Dive #2](https://youtu.be/0ympFIwQFJw?si=YOefYSoL39w8Sa-j)
@@ -32,19 +33,13 @@ Fiber 其实本质上代表着工作单位，它的功能有：
 ### Fiber 的属性
 
 - 和其它对象的关系是一对一的
-- `tag`字段存储对象类型，由数字 0 ～ 24 表示
-- `stateNode`字段是自身的引用，能够通过其访问到 Fiber 的状态（`state`）
+- `tag` 字段存储对象类型，由数字 0 ～ 24 表示
+- `stateNode` 字段是自身的引用，能够通过其访问到 Fiber 的状态 `state`
 
 ### Fiber 和 Element 之间的异同点
 
-Fiber 在大多数情况下是由 Element 创建的，而且 Fiber 和 Element 共享`type`和`key`字段。
+Fiber 在大多数情况下是由 Element 创建的，而且 Fiber 和 Element 共享 `type` 和 `key` 字段。
 
 但是相比起于每次都被重新创建的 Element 而言，Fiber 节点往往会尽可能地被复用（除了初始情况下，所有的 Fiber 节点要先被创建）
 
-![React Fiber的tag字段](/images/blogs/react-deep-dive-react-fiber/image-01.jpeg)
-
-React Fiber 的 tag 字段
-
-## 协调器
-
-协调器分为两个阶段：渲染阶段（Render Phase）和提交阶段（Commit Phase）
+![React Fiber 的 tag 字段](/images/blogs/react-deep-dive-react-fiber/image-01.jpeg)

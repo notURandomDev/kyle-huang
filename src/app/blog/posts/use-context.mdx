@@ -1,0 +1,86 @@
+---
+title: "useContext"
+publishedAt: "2025-04-03"
+tag: "React Deep Dive"
+image: "/images/blogs/react-deep-dive-cover.jpg"
+---
+
+在应用中的一个笔记模块中，对于笔记的分类，我通过使用一个底部弹出的 drawer（实际上是一个 Modal）来供用户选择分类选项。
+
+如果这个 Modal 只存在一个界面中，那么处理起来自然比较简单，所有的逻辑只要写一次，以及一些 state 只要在一个地方进行声明。
+
+但是问题就在于，该对于笔记进行操作的逻辑，在应用中的其它界面中也有用到，且逻辑基本相同。如果把同样的东西重复写两遍，就违反了 D.R.Y. 原则。
+
+具体来说，为什么会违背这个原则呢？如果仅将 Modal 作为一个独立的组件，并将参数以 props 的形式传入，那么要不就是要提升状态，要不就是通过 callback 来实现。
+
+如果通过参数来实现 Modal 的 `onDismiss` 逻辑，那么这个逻辑肯定就要写在父组件中。
+
+反之，如果通过 callback 来使状态本地化，那么回调的逻辑就很复杂。
+
+再者，我希望模态框的一些回调能和 `NoteItem` 相绑定。比如说点击确认之后，能将 SwipeableItem 关闭，并且更新笔记的内容。这些意味着我需要对模态框内部的一些函数进行操作，并且这些逻辑是可复用的。
+
+讲了那么多，我突然意识到，最重要的一点原因就是，`NoteItem` 和 Modal 是两个完全独立的组件。假设要实现通过点击 `NoteItem` 中的一个按钮，来唤醒 Modal 的功能；那么，不使用 context 的方法，就是通过对 `NoteItem` 的按钮加一个 callback 传到父组件中，父组件调用这个 callback，显示 modal。
+
+![](/images/blogs/react-deep-dive-use-context/image-01.jpeg)
+
+乍一看，好像这样没什么问题：但是 Modal 本身除了依赖 Button 的 callback（打开 modal），还依赖 `NoteItem` 的类型数据，而这些数据的处理逻辑，是可复用的。
+
+写不下去了，总之，看情况吧，感觉自己对于 `useContext` 的场景还是没有掌握的很好，因为组件太多了。
+
+还是说一点吧，就是如果用了 `ContextProvider`，那么会重复出现的组件（可隐藏）逻辑就不用多次写了，组件也不用多次声明，只要在 Provider 中写一次。
+
+而且，最好不要直接用 `Context.Provider` 包裹整个应用的 Root Component，这样会导致大量的重新渲染。最佳实践是通过 children 的形式将被包括的子组件传入；具体可以看一下这个视频：
+
+[This Context API Mistake Ruins Your Whole React App (All Components Re-Render)](https://www.youtube.com/watch?v=16yMmAJSGek)
+
+```jsx
+@label: Root Layout
+
+<GestureHandlerRootView>
+  <ModalProvider>
+    <Stack>
+      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+      <Stack.Screen
+        name="chat"
+        options={{
+          presentation: "modal",
+          headerShown: false,
+          gestureEnabled: false,
+        }}
+      />
+      <Stack.Screen name="videos_id/[vid]" options={{ headerShown: false }} />
+      <Stack.Screen name="search" options={{ headerShown: false }} />
+      <Stack.Screen
+        name="search_result/[search_keyword]"
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen name="namecard" options={{ headerShown: false }} />
+      <Stack.Screen name="newNote" options={{ headerShown: false }} />
+    </Stack>
+  </ModalProvider>
+</GestureHandlerRootView>
+```
+
+```jsx
+@label: 省略了一些逻辑处理的代码
+const ModalProvider = ({ children }: { children: ReactNode }) => {
+  const [modalVisible, setModalVisible] = useState(false);
+  const [note, setNote] = useState<ModalNoteProps>(DEFAULT_NOTE);
+
+  return (
+    <ModalContext.Provider value={{ showModal, setOnDismissCb }}>
+      {children}
+      <CategorySelectionModal
+        onDismiss={dismissModal}
+        selectedCategory={note.category}
+        isModalVisible={modalVisible}
+        onCategoryChange={handleCategoryChange}
+      />
+    </ModalContext.Provider>
+  );
+};
+```
+
+至于为什么 `ModalProvider` 中传入了 children，其 state 改变的时候不会触发子组件的重渲染呢？这是因为 React 官方文档中说，如果通过 children 作为参数传入作为子组件，那么其 `WrapperComponent` 的状态变化不会触发其重渲染。
+
+![来自 https://react.dev/reference/react/memo#should-you-add-memo-everywhere](/images/blogs/react-deep-dive-use-context/image-02.png)
