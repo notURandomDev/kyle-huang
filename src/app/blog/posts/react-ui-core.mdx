@@ -1,22 +1,23 @@
 ---
-title: "React中UI更新核心机制"
+title: "React 中 UI 更新核心机制"
 publishedAt: "2025-03-15"
 tag: "React Deep Dive"
 image: "/images/blogs/react-deep-dive-cover.jpg"
+summary: "虚拟 DOM 如何与真实 DOM 进行同步 & Diffing 算法的原则"
 ---
 
 ## UI 更新核心机制
 
 ### Reconciliation
 
-在调用`render()`函数之后，React 会生成一个 element tree，本质上是一系列 JS 对象（Objects）。
+在调用 `render()` 函数之后，React 会生成一个 element tree，本质上是一系列 JS 对象（Objects）。
 
-这棵 tree of elements 处于内存中，称为 Virtual DOM。
+这棵 element tree 处于内存中，称为 Virtual DOM Tree。
 
-React 需要做的工作，就是将 Virtual DOM 和 Real DOM 进行同步。
+React 需要做的工作，就是将虚拟 DOM 和真实 DOM 进行同步。
 
-- 在初步渲染时，会将整棵 Virtual DOM 进行插入操作
-- 初步渲染之后，如果 Virtual DOM 中有某些元素发生了变化，会生成一颗新的 Virtual DOM tree。如果将整棵树进行替换，开销非常大。因此，React 会使用 Diffing 算法，将进行替换的操作量最小化
+- 在初步渲染时，会将整棵 Virtual DOM Tree 进行插入操作
+- 初步渲染之后，如果 Virtual DOM Tree 中有某些元素发生了变化，会生成一颗新的 Virtual DOM Tree。如果将整棵树进行替换，开销非常大。因此，React 会使用 Diffing 算法，将进行替换的操作量最小化
 
 ### Diffing Algorithm
 

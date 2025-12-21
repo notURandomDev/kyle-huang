@@ -3,17 +3,18 @@ title: "useCallback"
 publishedAt: "2025-03-21"
 tag: "React Deep Dive"
 image: "/images/blogs/react-deep-dive-cover.jpg"
+summary: "用 useCallback 稳定函数引用，与 memo 搭配食用最佳"
 ---
 
 ## 引言
 
-为什么接触到了大名鼎鼎的 useCallback 了呢？
+为什么接触到了大名鼎鼎的 `useCallback` 了呢？
 
-因为在做 A18 的聊天界面的时候，发现每次在输入框中输入字符之后，都会触发整个 modal 的重渲染。当然，这是因为我在 modal 组件中使用了`setTextInputValue` 。因此，每次 state 的变化，都会导致整个组件的重新渲染。
+因为在做 A18 的聊天界面的时候，发现每次在输入框中输入字符之后，都会触发整个 modal 的重渲染。当然，这是因为我在 modal 组件中使用了 `setTextInputValue` 。因此，每次 state 的变化，都会导致整个组件的重新渲染。
 
 当然，如果单纯对于一个 demo 而言，优不优化性能并没有太大的关系。但是考虑到这么重要的一个 hook，迟早都要学的，不如趁着这个机会仔细研究研究。
 
-### 防抖/节流
+### 防抖
 
 通过防抖（debounce）延迟状态更新，只有用户停止输入一段时间后才触发渲染。这是输入框优化的常用方法。
 
@@ -53,13 +54,13 @@ const MyComponent = () => {
 export default MyComponent;
 ```
 
-这里就不展开讲防抖/节流了。我比较疑惑的点是，useCallback 为什么在这里出现，它有什么用？
+这里就不展开讲防抖了。我比较疑惑的点是，`useCallback` 为什么在这里出现，它有什么用？
 
 ## useCallback
 
 ### useCallback 是什么？
 
-与用于缓存函数结果的 useMemo 不同的是，useCallback 用于缓存函数本身的定义。
+与用于缓存函数结果的 `useMemo` 不同的是，`useCallback` 用于缓存函数本身的定义。
 
 ```jsx
 @label: 返回一个记忆化的回调函数，只有当其依赖项发生变化时，函数才会重新创建。
@@ -100,7 +101,7 @@ export default MyComponent;
 
 ### 核心概念
 
-通过以下的两个例子，能够直观地理解为什么函数会被重新创建，以及 useCallback 和 useMemo 的结合。
+通过以下的两个例子，能够直观地理解为什么函数会被重新创建，以及 `useCallback` 和 `useMemo` 的结合。
 
 ```jsx
 @label: 优化前
@@ -131,7 +132,7 @@ const MyComponent = () => {
 };
 ```
 
-**问题**：每次 MyComponent 渲染，handleClick 是新函数，ChildComponent 会重新渲染，即使它被 React.memo 包裹。
+**问题**：每次 `MyComponent` 渲染，`handleClick` 是新函数，`ChildComponent` 会重新渲染，即使它被 `memo` 包裹。
 
 ```jsx
 @label:优化后
@@ -152,7 +153,7 @@ const MyComponent = () => {
 };
 ```
 
-**效果**：handleClick 引用不变，ChildComponent 只有在其他 props 变化时才会渲染。
+**效果**：`handleClick` 引用不变，`ChildComponent` 只有在其他 props 变化时才会渲染。
 
 ### 反例
 
@@ -219,12 +220,12 @@ const ParentComponent = () => {
 };
 ```
 
-- **问题**：如果不使用 useCallback，handleClick 每次渲染都是新函数，ChildComponent 会重复渲染。
-- **效果**：用 useCallback 后，ChildComponent 只有在其他 props 变化时才渲染。
+- **问题**：如果不使用 `useCallback`，`handleClick` 每次渲染都是新函数，`ChildComponent` 会重复渲染。
+- **效果**：用 `useCallback` 后，`ChildComponent` 只有在其他 props 变化时才渲染。
 
 ### 优化频繁触发的事件处理函数
 
-在事件处理（如输入框的 onChange 或按钮的 onClick）中，如果函数涉及复杂逻辑或被频繁调用，使用 useCallback 可以结合防抖（debounce）或节流（throttle），确保回调函数引用稳定，避免重复创建。
+在事件处理（如输入框的 `onChange` 或按钮的 `onClick`）中，如果函数涉及复杂逻辑或被频繁调用，使用 `useCallback` 可以结合防抖（debounce）或节流（throttle），确保回调函数引用稳定，避免重复创建。
 
 ```jsx
 import { useState, useCallback } from "react";
@@ -243,18 +244,12 @@ const SearchComponent = () => {
     [] // 无依赖，防抖函数只创建一次
   );
 
-  return (
-    <TextInput
-      value={query}
-      onChangeText={handleSearch}
-      placeholder="Type to search"
-    />
-  );
+  return <TextInput value={query} onChangeText={handleSearch} placeholder="Type to search" />;
 };
 ```
 
-- **问题**：如果不使用 useCallback，handleSearch 每次渲染都重新创建防抖函数，失去防抖效果。
-- **效果**：用 useCallback 后，防抖函数引用稳定，用户输入时只在停止 500ms 后触发。
+- **问题**：如果不使用 `useCallback`，`handleSearch` 每次渲染都重新创建防抖函数，失去防抖效果。
+- **效果**：用 `useCallback` 后，防抖函数引用稳定，用户输入时只在停止 500ms 后触发。
 
 ## 合理地使用 useCallback
 
@@ -269,5 +264,5 @@ const MyComponent = () => {
 };
 ```
 
-- 如果函数依赖的状态或 props 频繁更新，useCallback 无法保持稳定，等价于不缓存。**渲染成本低**
+- 如果函数依赖的状态或 props 频繁更新，`useCallback` 无法保持稳定，等价于不缓存。**渲染成本低**
 - 如果组件渲染开销很小，缓存函数的收益不明显，反而增加代码复杂性。
