@@ -1,0 +1,222 @@
+---
+title: "如何实现点阵背景效果"
+publishedAt: "2026-01-11"
+tag: "技术解密"
+image: "/images/blogs/dots/cover.png"
+summary: "文章解释了如何使用 CSS 的 background-image + radial-gradient + background-size 实现网页的点阵背景效果"
+---
+
+在 once-ui 的 [magic-portfolio](https://magic-portfolio.com) 个人网站模版项目中，提供了一个 `<Background/>` 组件，能够实现点阵背景的酷炫效果：
+
+![网站点阵背景的效果](/images/blogs/dots/image-01.png)
+
+在这篇文章中，我们就来分析一下组件源码，看看这种效果是如何实现的。
+
+## 实现原理
+
+在 [once-ui-system-core](https://github.com/once-ui-system/core) 仓库中，可以看到实现点阵效果的核心代码仅有两行 CSS：
+
+```scss
+.dots {
+  background-image: radial-gradient(var(--dots-color) 1px, var(--static-transparent) 1px);
+  background-size: var(--dots-size) var(--dots-size);
+}
+```
+
+### radial-gradient
+
+[MDN](https://developer.mozilla.org/zh-CN/docs/Web/CSS/Reference/Values/gradient/radial-gradient) 对于 radial-gradient 的解释为：
+
+> **`radial-gradient()`** [CSS](https://developer.mozilla.org/zh-CN/docs/Web/CSS) [函数](https://developer.mozilla.org/zh-CN/docs/Web/CSS/Reference/Values/Functions)创建一个图像，该图像由从原点辐射的两种或多种颜色之间的渐进过渡组成，其形状可以是圆形或椭圆形。函数的结果是  [`<gradient>`](https://developer.mozilla.org/zh-CN/docs/Web/CSS/Reference/Values/gradient)  数据类型的对象，此对象是一种特殊的  [`<image>`](https://developer.mozilla.org/zh-CN/docs/Web/CSS/Reference/Values/image)  类型。
+
+由于 `radial-gradient()` 函数本质上会创建一个图像，因此我们就将这个图像赋值给 CSS 的 `background-image` 属性：
+
+```scss
+.dots {
+  background-image: radial-gradient(#3b82f6 3px, transparent 6px);
+}
+```
+
+在这个样式中，`radial-gradient` 接收了两个参数，且每个参数中除了带有颜色的 hex 值之外，还有一个以像素为单位的 color-stop 半径。默认情况下，`radial-gradient` 创建的图形是一个圆；因此这两个参数分别的意思是：
+
+- `#3b82f6 3px` ：在半径为 3px 的环上，颜色为 #3b82f6
+- `transparent 6px` ：在半径为 6px 的环上，颜色为透明
+
+注意，这两个参数仅声明了以某个半径为环上的颜色，而非以某个半径为圆内的颜色。这个 color-stop 的概念对于理解 `radial-gradient` 的渐变原理是非常重要的；因为 `radial-gradient` 所做的，就是对 color-stop 之间进行颜色的渐变处理。在这个例子中：
+
+- 0-3px：「#3b82f6」的纯蓝色，无渐变
+- 3px-6px：「#3b82f6」到「透明色」之间的渐变色
+- 6px 以外：透明色
+
+![这张图很好地解释了渐变色产生的原理](/images/blogs/dots/image-02.png)
+
+代码渲染出的实际效果长这样，是一个带有光晕的蓝色圆形：
+
+<br />
+
+<CodeBlock
+  copyButton
+  preview={
+    <Flex
+      position="absolute"
+      top="0"
+      left="0"
+      fill
+      pointerEvents="none"
+      style={{
+        backgroundPosition: "center center",
+        backgroundRepeat: "no-repeat",
+        backgroundImage: "radial-gradient(#3b82f6 12px, transparent 24px)",
+        backgroundSize: "48px 48px",
+      }}
+    />
+  }
+  codes={[
+    {
+      language: "javascript",
+      label: "带有光晕的圆",
+      code: `style={{
+        backgroundPosition: "center center",
+        backgroundRepeat: "no-repeat",
+        backgroundImage: "radial-gradient(#3b82f6 12px, transparent 24px)",
+        backgroundSize: "48px 48px",
+      }}`,
+    },
+  ]}
+/>
+
+<br />
+
+但是对于点阵背景而言，我们并不要圆外层的光晕效果；因此我们就可以把蓝色和透明色的 color-stop 半径值设置为相同的，这样就能够得到一个边缘锐利的圆：
+
+<br />
+
+<CodeBlock
+  copyButton
+  preview={
+    <Flex
+      position="absolute"
+      top="0"
+      left="0"
+      fill
+      pointerEvents="none"
+      style={{
+        backgroundPosition: "center center",
+        backgroundRepeat: "no-repeat",
+        backgroundImage: "radial-gradient(#3b82f6 12px, transparent 12px)",
+        backgroundSize: "48px 48px",
+      }}
+    />
+  }
+  codes={[
+    {
+      language: "javascript",
+      label: "边缘锐利的圆",
+      code: `style={{
+        backgroundPosition: "center center",
+        backgroundRepeat: "no-repeat",
+        backgroundImage: "radial-gradient(#3b82f6 12px, transparent 12px)",
+        backgroundSize: "48px 48px",
+      }}`,
+    },
+  ]}
+/>
+
+<br />
+
+### background-size
+
+在理解了如何使用 `background-image` + `radial-gradient` 来生成一个圆之后，我们要做的就是遍历这些圆的生成，让它们覆盖整个背景。
+
+因此我们需要定义 `background-size`，即容纳圆形的容器尺寸。幸运的是，通过 `radial-gradient` 生成的圆形图像正好位于容器的正中央，因此我们仅需要定义一个正方形的容器。
+
+![示意图：通过 background-image 的 repeat，实现点阵](/images/blogs/dots/image-03.png)
+
+需要注意的是， `background-repeat: repeat` 是 CSS 的默认行为；因此当我们定义好一个合适的圆点大小之后，就能得到一个点阵背景：
+
+<br />
+
+<CodeBlock
+  copyButton
+  preview={
+    <Flex
+      position="absolute"
+      top="0"
+      left="0"
+      fill
+      pointerEvents="none"
+      style={{
+        backgroundImage: "radial-gradient(#3b82f6 1px, transparent 1px)",
+        backgroundSize: "4px 4px",
+      }}
+    />
+  }
+  codes={[
+    {
+      language: "javascript",
+      label: "密集点阵",
+      code: `style={{
+        backgroundImage: "radial-gradient(#3b82f6 1px, transparent 1px)",
+        backgroundSize: "4px 4px",
+      }}`,
+    },
+  ]}
+/>
+
+<br />
+
+由于这个背景本质上是由无数个正方形容器堆叠起来的；因此在圆点大小不变的情况下，我们可以通过修改容器的尺寸，来给圆点和圆点之间留出更多的空隙，实现不同的视觉效果：
+
+<br />
+
+<CodeBlock
+  copyButton
+  preview={
+    <Flex
+      position="absolute"
+      top="0"
+      left="0"
+      fill
+      pointerEvents="none"
+      style={{
+        backgroundImage: "radial-gradient(#3b82f6 1px, transparent 1px)",
+        backgroundSize: "16px 16px",
+      }}
+    />
+  }
+  codes={[
+    {
+      language: "javascript",
+      label: "稀疏点阵",
+      code: `style={{
+        backgroundImage: "radial-gradient(#3b82f6 1px, transparent 1px)",
+        backgroundSize: "16px 16px",
+      }}`,
+    },
+  ]}
+/>
+
+<br />
+
+## 总结
+
+其实当我看到这个点阵背景的时候，第一反应以为这个效果是用遍历生成无数个小圆点 DOM 实现的；尽管认为这种实现有些反直觉，因为性能开销很大。
+
+当深入了解之后，才明白这个效果是用纯 CSS 实现的。
+
+那么同样是在页面上“画东西”，采用 DOM 和纯 CSS 的方式在原理上有什么区别呢？
+
+### CSS 实现点阵背景的优点
+
+首先，CSS 样式的实现其实是用了 GPU 的能力；而且 CSS 样式与 DOM 是绑定的，并不会额外生成更多的 DOM 元素。
+
+这就意味着如果采用我们文中提到的 CSS 点阵生成方法：
+
+- 任务执行在 DOM 的绘制阶段，浏览器调用 GPU，根据 CSS 规则对每个像素执行着色程序
+- 虽然视觉上生成了无数个小点，但实际上仅有一个 Background 组件对应的 DOM 节点
+
+相比之下，如果采用遍历生成 DOM 的方式来实现点阵效果，那么每个元素都要经历「创建对象 ➡️  计算位置 ➡️  布局 ➡️  绘制」的步骤，对 CPU 的占用会很大。而且想实现的点阵越密集，DOM 节点渲染时对 CPU 主线程占用的程度就越大，滚动起来卡顿感就越明显。
+
+### 更进一步
+
+如果读者想要进一步了解不同参数下所实现的不同点阵效果，可参考这个页面：[🎨 CSS 点阵效果参数对比](https://claude.ai/public/artifacts/8a6d1626-0aeb-4f09-aa73-46eadeeada63)
