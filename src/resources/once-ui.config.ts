@@ -120,7 +120,7 @@ const effects: EffectsConfig = {
   dots: {
     display: true,
     opacity: 40,
-    size: "2",
+    size: "8",
     color: "brand-background-strong",
   },
   grid: {
