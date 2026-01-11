@@ -27,6 +27,8 @@ import {
   ListItem,
   Line,
   OgCard,
+  Flex,
+  BlockQuote,
 } from "@once-ui-system/core";
 
 type CustomLinkProps = React.AnchorHTMLAttributes<HTMLAnchorElement> & {
@@ -377,27 +379,11 @@ function extractTableData(children: ReactNode): {
   }
 }
 
-// function createQuote(props: any) {
-//   const quoteNode = props.children.find((el: any) => el !== "\n");
-
-//   const quote = quoteNode.props.children;
-//   console.log("[createQuote] quote:", quote);
-
-//   return (
-//     <Row fillWidth>
-//       <Line vert height="20" />
-//       <Text
-//         style={{ lineHeight: "175%" }}
-//         variant="body-strong-m"
-//         onBackground="neutral-medium"
-//         marginTop="8"
-//         marginBottom="12"
-//       >
-//         {quote}
-//       </Text>
-//     </Row>
-//   );
-// }
+function createQuote(props: any) {
+  const quoteNode = props.children.find((el: any) => el !== "\n");
+  const [quote] = quoteNode.props.children;
+  return <BlockQuote>{quote}</BlockQuote>;
+}
 
 const components = {
   p: createParagraph as any,
@@ -416,6 +402,7 @@ const components = {
   li: createListItem as any,
   hr: createHR as any,
   table: createTable as any,
+  // blockquote: createQuote as any,
   Heading,
   Text,
   CodeBlock,
@@ -433,6 +420,8 @@ const components = {
   Media,
   SmartLink,
   OgCard,
+  Flex,
+  BlockQuote,
 };
 
 const options = {
