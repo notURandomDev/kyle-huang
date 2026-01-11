@@ -1,0 +1,89 @@
+---
+title: "React Portals"
+publishedAt: "2026-01-12"
+tag: "技术解密"
+image: "/images/blogs/react-portals/cover.png"
+summary: "解锁 React Portal 的所有能力，理解使用 react-reverse-portal 的最佳场景"
+---
+
+## React Portal
+
+相信不少人都对来自 react-dom 的 portal 比较熟悉。
+
+```jsx
+import { createPortal } from "react-dom";
+
+// ...
+
+<div>
+  <p>This child is placed in the parent div.</p>
+  {createPortal(<p>This child is placed in the document body.</p>, document.body)}
+</div>;
+```
+
+### 工作原理
+
+在 portal 的作用下，目标 DOM 节点不会在 DOM 树预期中的位置进行渲染；而是被一个「传送门」传送到了 DOM 树的另一个位置进行渲染。
+
+### 使用场景
+
+最常见的场景是当需要开发一个 `<Modal/>` 组件的时候，为了避免 `<Modal/>` 的层级（z-index）被某些全局的样式覆盖，通常会用 [createPortal](https://react.dev/reference/react-dom/createPortal) 将其挂到 `document.body` 上。
+
+### 事件冒泡原则
+
+尽管 portal 使被传送组件的 DOM 渲染位置发生变化，其事件冒泡的逻辑仍然和 React 组件树结构相对应。
+
+```jsx
+import { createPortal } from "react-dom";
+
+// ...
+
+<div onClick={handleClick}>
+  {createPortal(<p>This child is placed in the document body.</p>, document.body)}
+</div>;
+```
+
+比如 portal 内元素的外层被一个带有 `onClick` 事件监听函数的 div 所包裹，那么当被传送元素被点击时，`handleClick` 能够正常捕获到该点击事件。
+
+如果不想让被传送的元素相关事件冒泡到其 React 父元素之上，就需要显式设置 `e.stopPropagation()` 来防止默认的冒泡行为。
+
+## react-reverse-portal
+
+createPortal 虽然好用，但也有它力不从心的场景。
+
+### createPortal 不够用的场景
+
+假设我们开发的应用中有一个视频播放器组件，它有预览和全屏两种状态。
+
+如果要处理这个组件的全屏状态，我们很容易想到将全屏状态的播放器挂到 document.body 上，这样能最大程度地保证页面中其它元素的层级样式遮挡；写出来的代码类似于：
+
+```jsx
+const VideoPlayer = ({ isFullscreen }) => {
+  const content = <video ref={videoRef} controls />;
+
+  if (isFullscreen) {
+    return ReactDOM.createPortal(content, fullscreenContainer);
+  }
+  return content;
+};
+```
+
+当播放器从预览状态变为全屏状态之后，预览态的组件先会卸载；然后 createPortal 才被调用，一个新的播放器实例此时被重新挂载。
+
+如果我们希望在两种状态下能共享同一个播放器实例，那么这种做法无法达到目的。
+
+### createPortal 真的不够用吗？
+
+如果我们换一种思路，在两种状态下都调用 createPortal，然后通过区分传送的目标 DOM 位置来实现预览和全屏状态的组件实例共享呢？
+
+```jsx
+const VideoPlayer = ({ isFullscreen }) => {
+  const videoRef = useRef(null);
+  return ReactDOM.createPortal(
+    <video ref={videoRef} />,
+    isFullscreen ? fullscreenContainer : previewContainer
+  );
+};
+```
+
+to be continued...
