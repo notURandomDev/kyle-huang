@@ -80,16 +80,27 @@ const about: About = {
     title: "个人介绍",
     description: (
       <>
-        👋 Hi～ 我是一个具有全栈开发能力的前端工程师；
+        <b>👋 个人介绍</b>
+        Hi～ 我是一个具有全栈开发能力的前端工程师；
         同时也做过构建优化、研发效率相关的架构工作，写过服务端 API Service。
         <br /> <br />
-        React.js 是我的核心技术栈，BaaS 是我独立开发的好帮手
-        👬；在设计产品时，我习惯从用户角度出发，探索最佳的交互模式。
+        React.js 是我的核心技术栈，BaaS
+        是我独立开发的好帮手；在设计产品时，我习惯从用户角度出发，探索最佳的交互模式。
         <br /> <br />
-        我有丰富的项目经验 👨‍💻，做过 Web、RN跨平台、微信小程序，以及 iOS 和 Android
+        我有丰富的项目经验，做过 Web、RN跨平台、微信小程序，以及 iOS 和 Android
         的原生开发；Project-Based Learning 是我最喜欢的学习方式！
         <br /> <br />
-        业余时间，我喜欢参与有意思的开源项目，为 Open-Sourcing 做出自己的贡献 💪
+        业余时间，我喜欢参与有意思的开源项目，为 Open-Sourcing 做出自己的贡献~
+        <br /> <br />
+        <b>⌨️ 关于我的编码态度</b>
+        我喜欢秉承一种「代码工匠」的精神，将自己开发的项目当作一个艺术品来雕刻；这不仅体现在我对 UX
+        细节的高标准还原，还体现在对于屎山代码的零容忍以及架构合理性的考量。
+        <br /> <br />
+        这种观念并不和效率冲突；相反地，我在开发过程中会尽量避免这种 Coding-OCD 对开发效率的影响。
+        <br /> <br />
+        基于 YAGNI
+        原则，往往我会保证先在能向后兼容的架构基础上实现功能，尽可能避免抽象层的过早设计；然后在开发过程中随时重构，对通用
+        service 逻辑进行提取，对可复用的 hook 进行封装等等，渐进式地优化代码质量。
       </>
     ),
   },
@@ -118,7 +129,7 @@ const about: About = {
         company: "飞书｜字节跳动",
         timeframe: "2025/11 - 至今",
         role: "前端开发 - 企业知识问答",
-        achievements: [<>AI 应用开发</>],
+        achievements: [<>企业级 Knowledge-Based AI 应用开发</>],
         images: [
           // optional: leave the array empty if you don't want to display images
           {
