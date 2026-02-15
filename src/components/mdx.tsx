@@ -267,7 +267,7 @@ function extractTableData(children: ReactNode): {
   try {
     // Convert children to array and filter out whitespace
     const childArray = React.Children.toArray(children).filter(
-      (child) => typeof child !== "string" || child.trim() !== ""
+      (child) => typeof child !== "string" || child.trim() !== "",
     );
 
     if (childArray.length === 0) {
@@ -293,7 +293,7 @@ function extractTableData(children: ReactNode): {
       if (!row || !row.props?.children) return null;
 
       const cells = React.Children.toArray(row.props.children).filter(
-        (cell: any) => cell?.type === "th" || cell?.type === "td"
+        (cell: any) => cell?.type === "th" || cell?.type === "td",
       );
 
       if (cells.length === 0) return null;
@@ -440,7 +440,6 @@ export function CustomMDX(props: CustomMDXProps) {
       options={{ blockJS: false }}
       {...props}
       components={{ ...components, ...(props.components || {}) }}
-      options={options}
     />
   );
 }

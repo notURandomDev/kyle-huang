@@ -27,6 +27,7 @@ const social: Social = [
     name: "GitHub",
     icon: "github",
     link: "https://github.com/notURandomDev",
+    essential: true,
   },
   {
     name: "Email",
