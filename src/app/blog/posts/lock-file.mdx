@@ -1,0 +1,19 @@
+---
+title: "包管理工具的 Lock 文件"
+image: "/images/blogs/lock-file/cover.png"
+publishedAt: "2026-02-15"
+tag: "技术解密"
+summary: "解析 Lock 文件通过快速时效性检查实现构建复用的工作机制"
+---
+
+在大型 Monorepo 中每次 rebase master 都需要更新依赖，随后会发现 pnpm-lock.yaml / package-lock.json 会发生变化。
+
+Lock 文件的作用到底是什么呢？如果是用来复现构建结果的，为什么每次 rebase 之后重新变化，这个 “唯一真相来源” 都会发生变化？
+
+其实 Lock 文件并非是唯一真相来源，Lock 文件是某次构建时各 package 依赖图的一个快照；使用它有前置的检查步骤。
+
+npm 会先参照 package.json 声明的「依赖意图」来对照 package-lock.json 的依赖图是否已经失效；虽然这个检查在每次运行 npm install/update 等命令的时候都会执行，如果发现依赖关系没变才会复用现有的 package-lock.json 进行构建。
+
+但每次发生的检查并不意味着 package-lock.json 所带来的优势不明显。尽管检查会耗时（毫秒级别），但比起重新解析依赖图所需的耗时（几秒到几十秒）是不值一提的。
+
+在极快地检查依赖图的时效性之后，npm 就能判断是复用现有的 package-lock.json，进行快速构建；还是重新解析依赖图，并对 package-lock.json 进行更新。
